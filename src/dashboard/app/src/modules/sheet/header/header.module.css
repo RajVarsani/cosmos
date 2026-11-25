@@ -1,0 +1,7 @@
+.head{grid-area:head;display:flex;align-items:center;gap:10px;padding:0 10px 10px 16px;min-width:0;transition:opacity .25s .08s}
+:global(#sheet[data-mini]) .head{opacity:0;pointer-events:none;visibility:hidden;transition:opacity .15s,visibility 0s .15s}
+/* with no system bar above it, the header is the sheet's top row: the bar's height, content centred */
+:global(#sheet:not([data-focus])) .head{height:var(--bar-h);padding-bottom:0}
+.sp{flex:1}
+:global(#sheet[data-tab="new"]) .size{display:none}
+@media (max-width:760px){ .head{gap:8px;padding-left:12px} .size{display:none} }

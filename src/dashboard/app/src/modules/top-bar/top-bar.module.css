@@ -1,0 +1,8 @@
+.hud{position:fixed;z-index:20;transition:opacity .22s var(--ease)}
+:global(body.ui-off) .hud{opacity:0!important;pointer-events:none!important}
+.bar{top:var(--m);left:var(--m);height:44px;display:flex;align-items:center;gap:2px;padding:0 6px 0 8px;border-radius:14px;max-width:calc(100vw - 2 * var(--m));min-width:0}
+.vsep{width:1px;height:18px;background:var(--hair-2);margin:0 8px;flex:none}
+@media (max-width:760px){
+  .bar{right:var(--m);height:42px}
+  .bar kbd{display:none}
+}

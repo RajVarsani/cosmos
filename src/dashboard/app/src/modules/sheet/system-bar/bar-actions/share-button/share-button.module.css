@@ -1,0 +1,9 @@
+.wrap{display:grid}
+.btn{transition:background .15s,color .15s}
+.btn[data-tone="on"]{color:var(--cyan);background:color-mix(in srgb,var(--cyan) 14%,transparent)}
+.btn[data-tone="on"]:hover{background:color-mix(in srgb,var(--cyan) 22%,transparent)}
+.btn[data-tone="go"]{color:var(--cyan)}
+.btn[data-tone="warn"]{color:var(--amb);background:var(--amb-wash)}
+.btn[data-tone="dim"]{color:var(--tx-3)}
+.btn[aria-busy="true"]{animation:pend 1.1s var(--ease) infinite alternate}
+@keyframes pend{to{opacity:.15}}

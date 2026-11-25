@@ -1,0 +1,6 @@
+.more{margin-top:14px;border-top:1px solid var(--hair);padding-top:10px}
+.more summary{list-style:none;cursor:pointer;font:400 10.5px var(--mono);color:var(--tx-3);text-transform:uppercase;letter-spacing:.05em;display:flex;align-items:center;gap:6px;user-select:none}
+.more summary::-webkit-details-marker{display:none}
+.more summary::before{content:"";width:5px;height:5px;border-right:1px solid currentColor;border-bottom:1px solid currentColor;transform:rotate(-45deg);transition:transform .2s}
+.more[open] summary::before{transform:rotate(45deg)}
+.more summary:hover{color:var(--tx-2)}

@@ -1,0 +1,6 @@
+.side{padding:14px 18px 18px;border-left:1px solid var(--hair);min-height:100%;display:grid;gap:14px;align-content:start}
+.side .tuck{margin-bottom:-6px}
+.side .flush{margin-top:0}
+@media (max-width:1180px){
+  .side{border-left:0;border-top:1px solid var(--hair);min-height:0}
+}

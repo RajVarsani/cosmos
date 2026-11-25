@@ -1,0 +1,8 @@
+.crumb{display:flex;align-items:center;gap:4px;font-size:13px;color:var(--tx-3);white-space:nowrap;min-width:0}
+.crumb b{font-weight:500;color:var(--tx);overflow:hidden;text-overflow:ellipsis}
+.x{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;color:var(--tx-3);flex:none}
+.x:hover{color:var(--tx);background:var(--inset)}
+.cb{width:auto;height:26px;padding:0 6px;border-radius:8px;flex:none;font:500 13px var(--sans);color:var(--tx);overflow:hidden;text-overflow:ellipsis;max-width:22vw;display:block;white-space:nowrap}
+.cb:hover{background:var(--inset);color:var(--tx)}
+.up{color:var(--tx-2);font-weight:400}
+.pl{display:flex;align-items:center;gap:4px;min-width:0}

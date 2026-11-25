@@ -1,0 +1,33 @@
+/* ---------- shared scene dom: host, in-scene labels, tooltip; both views create and query these ---------- */
+@keyframes gl-in{from{opacity:0}}
+.cosmos{position:fixed;inset:0;background:var(--space);color:var(--tx)}
+.cz-labels{position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden;opacity:1;transition:opacity .18s var(--ease)}
+body.ui-off .cz-labels{opacity:0}
+.cosmos.cz-busy .cz-labels{opacity:0;transition:opacity .08s linear}
+.cosmos.cz-busy .gl-l{pointer-events:none}
+.cosmos.cz-busy .tip{opacity:0;transition:opacity .08s linear;pointer-events:none}
+.gl-l{animation:gl-in .18s var(--ease) both;position:absolute;left:0;top:0;white-space:nowrap;pointer-events:auto;cursor:pointer;transition:opacity .25s var(--ease);will-change:transform;
+  font-family:var(--sans);font-optical-sizing:auto;font-feature-settings:"tnum","cv11";-webkit-font-smoothing:antialiased;
+  text-shadow:0 0 1px var(--shade-85),0 1px 2px var(--shade-70),0 0 12px var(--shade-65)}
+/* one scale for every in-scene label: name, then a quiet meta line */
+.gl-l b{display:block;font:500 14px/1.2 var(--sans);letter-spacing:-.012em;color:var(--label-tx)}
+.gl-l span{display:flex;align-items:center;gap:5px;margin-top:2px;font:400 11.5px/1.3 var(--sans);letter-spacing:0;color:var(--label-meta)}
+.gl-l span i{width:5px;height:5px;border-radius:50%;background:var(--label-dot);flex:none;box-shadow:0 0 0 1px var(--shade-35)}
+.gl-l span i.ok{background:var(--grn)} .gl-l span i.go{background:var(--yel)} .gl-l span i.bad{background:var(--red)}
+.gl-l span em{font-style:normal;color:var(--label-em)}
+.gl-l[data-side="left"]{text-align:right} .gl-l[data-side="left"] span{justify-content:flex-end}
+.gl-l[data-side="below"],.gl-l[data-side="above"]{text-align:center} .gl-l[data-side="below"] span,.gl-l[data-side="above"] span{justify-content:center}
+.gl-l.mini span{display:none}
+.gl-l u{text-decoration:none;font:400 11.5px/1.3 var(--sans);color:var(--cyan)} .gl-l u.down{color:var(--amb)} .gl-l u.off{color:var(--label-off)} .gl-l b u{margin-left:6px}
+.gl-l.sys.off b{color:var(--label-off)}
+.gl-l.sys.bad span em{color:var(--err-tx)}
+.gl-l.sys:hover b{text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1px;text-decoration-color:var(--underline)}
+.gl-l.core,.gl-l.sat,.gl-l.free,.gl-l.pl,.gl-l.share{pointer-events:none}
+.gl-l.core span{color:var(--core-meta)}
+.gl-l.sat b{font-size:12.5px;color:var(--c)}
+.gl-l.free b{font-size:12.5px;color:var(--free-tx)}
+.gl-l.pl b{font-size:12.5px;letter-spacing:-.006em;color:var(--pl-tx)}
+.gl-l.pl span{font-size:10.5px;margin-top:1px;color:var(--pl-meta)}
+.gl-l.pl.sel b{color:var(--c)}
+.gl-l.pl.dim b{color:var(--pl-dim)}
+.gl-l.pl.belt b{font-size:11.5px;font-weight:500;color:var(--belt-tx)}

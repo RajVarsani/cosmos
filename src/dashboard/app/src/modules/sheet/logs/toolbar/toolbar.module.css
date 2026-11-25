@@ -1,0 +1,5 @@
+.top2{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"sel vol" "tools tools";align-items:center;gap:10px 16px;padding:10px 16px 12px;border-bottom:1px solid var(--hair)}
+.tools{grid-area:tools;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+@media (max-width:760px){
+  .top2{grid-template-columns:minmax(0,1fr);grid-template-areas:"sel" "tools";padding:10px 12px 12px}
+}

@@ -1,0 +1,5 @@
+.hp{grid-area:hp;display:flex;align-items:center;gap:3px;min-width:0;overflow:hidden;height:22px}
+.hp i{width:5px;height:14px;border-radius:2px;background:var(--tick-off);flex:none;transition:background .3s,height .15s var(--ease)}
+.hp i.ok{background:color-mix(in srgb,var(--grn) 78%,var(--tick-shade))} .hp i.go{background:var(--yel)} .hp i.bad{background:var(--red)}
+.hp i.gap{width:5px;background:none}
+.hp i:hover,.hp i.hl{height:20px}

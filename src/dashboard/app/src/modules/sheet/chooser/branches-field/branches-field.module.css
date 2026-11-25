@@ -1,0 +1,2 @@
+.rows{display:grid;border:1px solid var(--hair);border-radius:12px;padding:0 10px;margin-bottom:6px}
+.rows>:first-child{border-top:0}

@@ -1,0 +1,41 @@
+{
+  "name": "@rajvarsani/cosmos",
+  "version": "0.1.0",
+  "description": "Isolated instances of a project's docker compose stack on one machine, with per-instance worktrees, an edge, shares and a dashboard.",
+  "type": "module",
+  "bin": {
+    "cosmos": "bin/cosmos"
+  },
+  "exports": {
+    "./adapter": {
+      "types": "./src/api.ts",
+      "default": "./src/api.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "bin/",
+    "src/*.ts",
+    "src/dashboard/*.ts",
+    "src/dashboard/app/dist/",
+    "docker/go-air.Dockerfile",
+    "skills/",
+    "README.md"
+  ],
+  "engines": {
+    "bun": ">=1.3"
+  },
+  "publishConfig": {
+    "access": "restricted"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test ./test",
+    "build:dashboard": "cd src/dashboard/app && bun install --frozen-lockfile && bun run build",
+    "leak-check": "bash scripts/leak-check.sh"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.2",
+    "typescript": "^7.0.2"
+  }
+}

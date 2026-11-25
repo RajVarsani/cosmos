@@ -1,0 +1,4 @@
+dl.kv{margin-top:0}
+.kv a{color:var(--tx);text-decoration:none;border-bottom:1px solid var(--hair-2)}
+.kv .k{color:var(--tx-3)}
+.kv .ok{color:var(--ok-tx)} .kv .bad{color:var(--red)}

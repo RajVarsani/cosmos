@@ -1,0 +1,8 @@
+.sheet{position:fixed;z-index:32;left:var(--m);right:var(--m);bottom:var(--m);height:var(--sheet-h,45vh);border-radius:var(--r);overflow:hidden;
+  display:grid;grid-template-rows:auto auto minmax(0,1fr);grid-template-areas:"bar" "head" "body";
+  background:var(--glass-2);transition:height .42s var(--spring)}
+.sheet>*:nth-child(n+4){grid-area:body}
+.mini{height:var(--bar-h)}
+.sizing{transition:none}
+:global(body.ui-off) .sheet{opacity:0!important;pointer-events:none!important}
+@media (prefers-reduced-transparency: reduce){ .sheet{background:var(--solid)} }

@@ -1,0 +1,2 @@
+.fld label{display:block;font:400 10px var(--mono);color:var(--tx-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.step{display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;background:var(--inset-2);color:var(--tx-2);font-size:9px;margin-right:7px;vertical-align:1px}

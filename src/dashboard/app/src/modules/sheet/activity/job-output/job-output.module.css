@@ -1,0 +1,4 @@
+.out{margin:0 10px 10px;max-height:260px;overflow:auto;font:400 10.5px/1.55 var(--mono);color:var(--tx-2);white-space:pre-wrap;overflow-wrap:anywhere;scrollbar-width:thin;scrollbar-color:var(--hair-2) transparent}
+.error{color:var(--err-tx)}
+.done{color:var(--ok-tx)}
+.log{color:var(--go-tx)}

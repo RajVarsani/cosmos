@@ -1,0 +1,9 @@
+.act{border-left:1px solid var(--hair);min-height:0;min-width:0;display:grid;grid-template-rows:auto minmax(0,1fr)}
+.cap{padding:12px 14px 8px}
+.list{min-height:0;overflow-y:auto;overflow-x:hidden;padding:0 10px 12px;scrollbar-width:thin;scrollbar-color:var(--hair-2) transparent}
+.none{padding:10px 6px}
+.more{margin:6px 4px}
+@media (max-width:1180px){
+  .act{display:none}
+  :global(#sheet[data-tab="act"]) .act{display:grid;border-left:0}
+}

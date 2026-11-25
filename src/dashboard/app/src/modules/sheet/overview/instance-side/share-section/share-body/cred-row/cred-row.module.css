@@ -1,0 +1,5 @@
+.row{display:grid;grid-template-columns:62px minmax(0,1fr) 32px 32px;align-items:center;gap:4px;font:400 11px/1.4 var(--mono)}
+.row span{color:var(--tx-3)}
+.row b{font-weight:400;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;user-select:all}
+.row b[data-masked]{user-select:none;color:var(--tx-2);letter-spacing:.08em}
+.row [aria-pressed="true"]{color:var(--tx)}

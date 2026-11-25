@@ -1,0 +1,5 @@
+.ib{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;color:var(--tx-2);flex:none;transition:background .15s,color .15s}
+.ib:hover{background:var(--inset-2);color:var(--tx)}
+.ib svg{width:15px;height:15px}
+.dan:hover{color:var(--red)}
+.ib:disabled,.ib[aria-disabled="true"]{opacity:.3;pointer-events:none}

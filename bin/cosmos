@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# resolves the symlink chain (node_modules/.bin -> the package) so the package's own src/cli.ts runs
+src="${BASH_SOURCE[0]}"
+while [ -L "$src" ]; do
+  dir="$(cd -P "$(dirname "$src")" && pwd)"
+  src="$(readlink "$src")"
+  case "$src" in /*) ;; *) src="$dir/$src" ;; esac
+done
+pkg="$(cd -P "$(dirname "$src")/.." && pwd)"
+exec bun "$pkg/src/cli.ts" "$@"

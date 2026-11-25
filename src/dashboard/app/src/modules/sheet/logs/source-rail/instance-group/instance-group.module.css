@@ -1,0 +1,12 @@
+.rg{border-top:1px solid var(--hair);padding:4px 0}
+.rg:first-child{border-top:0}
+.head{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;gap:8px;width:100%;text-align:left;padding:8px 6px;border-radius:10px}
+.head:hover{background:var(--inset)}
+.head i{width:7px;height:7px;border-radius:50%;background:var(--tx-3)}
+.head i.ok{background:var(--grn);box-shadow:0 0 8px var(--grn)}
+.head i.go{background:var(--yel)}
+.head i.bad{background:var(--red)}
+.head b{font-weight:400;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bk{font:400 9.5px var(--mono);text-transform:uppercase;letter-spacing:.05em;color:color-mix(in srgb,var(--c) var(--tagk),var(--black))}
+.n{font:400 10px var(--mono);color:var(--tx-3)}
+.body{padding:0 0 4px 10px;min-width:0}

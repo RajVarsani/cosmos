@@ -1,0 +1,21 @@
+.svr{font:400 11.5px var(--mono);color:var(--tx-2);cursor:pointer;transition:background .15s}
+.svr:hover,.svr.hl{background:var(--inset)}
+.svr.sel{background:var(--inset-2)}
+.nm{display:grid;grid-auto-flow:column;grid-template-columns:7px minmax(0,auto);justify-content:start;align-items:center;gap:8px;min-width:0;font:400 13px var(--sans);color:var(--tx)}
+.nm i{width:7px;height:7px;border-radius:50%;background:var(--pc,var(--dot-off))}
+.nm b{font-weight:400;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nm small{font:400 10px var(--mono);color:var(--tx-3);white-space:nowrap}
+.svr a{color:var(--tx);text-decoration:none;border-bottom:1px solid var(--hair-2);justify-self:start}
+.svr a:hover{border-color:var(--tx)}
+.dead{color:var(--tx-3)}
+.mm{display:grid;grid-auto-flow:column;justify-content:end;align-items:center;gap:8px;white-space:nowrap}
+.mm svg{width:56px;height:14px;fill:none;stroke:var(--pc);stroke-width:1.2;stroke-linejoin:round;vector-effect:non-scaling-stroke;opacity:.85}
+.r{text-align:right;white-space:nowrap}
+.r.ok{color:var(--ok-tx)} .r.bad{color:var(--red)} .r.go{color:var(--go-tx)}
+.r.hot{color:var(--amb)}
+.lg{justify-self:end;font:400 10.5px var(--mono);color:var(--tx-2);border:1px solid var(--hair-2);border-radius:999px;padding:2px 9px}
+.lg:hover{color:var(--tx);border-color:var(--tx-3)}
+.lg:disabled{opacity:.3}
+@media (max-width:760px){
+  .mm svg{display:none}
+}

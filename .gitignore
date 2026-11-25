@@ -1,0 +1,5 @@
+node_modules/
+.e2e-home/
+*.tsbuildinfo
+.DS_Store
+*.tgz

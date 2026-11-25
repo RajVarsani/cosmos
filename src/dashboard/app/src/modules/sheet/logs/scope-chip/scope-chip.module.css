@@ -1,0 +1,5 @@
+:global(#sheet[data-tab="sys"]) button.scope,:global(#sheet[data-tab="new"]) button.scope{display:none}
+@media (max-width:760px){
+  button.scope{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;padding:0 10px}
+  .scope span{display:none}
+}

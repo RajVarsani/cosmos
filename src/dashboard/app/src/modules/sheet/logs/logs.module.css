@@ -1,0 +1,13 @@
+.root{flex:1;min-height:0;display:grid;grid-template-columns:230px minmax(0,1fr) 290px;border-top:1px solid var(--hair);transition:opacity .25s .08s}
+:global(#sheet[data-mini]) .root{opacity:0;pointer-events:none;visibility:hidden;transition:opacity .15s,visibility 0s .15s}
+:global(#sheet[data-tab="sys"]) .root,:global(#sheet[data-tab="new"]) .root{display:none}
+.main{position:relative;min-height:0;min-width:0;display:grid;grid-template-rows:auto minmax(0,1fr)}
+@media (max-width:1180px){
+  .root{grid-template-columns:210px minmax(0,1fr)}
+  :global(#sheet[data-tab="act"]) .root{grid-template-columns:minmax(0,1fr)}
+  :global(#sheet[data-tab="act"]) .main{display:none}
+}
+@media (max-width:760px){
+  .root{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
+  :global(#sheet[data-tab="act"]) .root{grid-template-rows:minmax(0,1fr)}
+}

@@ -1,0 +1,5 @@
+.band>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:6px;font:400 9.5px var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--tx-3);padding:6px 6px 3px;user-select:none}
+.band>summary::-webkit-details-marker{display:none}
+.band>summary::before{content:"";width:4px;height:4px;border-right:1px solid currentColor;border-bottom:1px solid currentColor;transform:rotate(-45deg);transition:transform .2s}
+.band[open]>summary::before{transform:rotate(45deg)}
+.n{margin-left:auto;letter-spacing:0}

@@ -1,0 +1,6 @@
+.tabs button{text-transform:none}
+.act{display:none!important}
+:global(#sheet:not([data-focus])) .sys{display:none!important}
+:global(#sheet[data-tab="new"]) .tabs{display:none}
+@media (max-width:1180px){ .act{display:inline-flex!important} }
+@media (max-width:760px){ .tabs button{padding:0 8px} }

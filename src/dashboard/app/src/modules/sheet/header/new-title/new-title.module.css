@@ -1,0 +1,3 @@
+.ttl{display:flex;align-items:baseline;gap:10px;font:500 15px/1 var(--sans);letter-spacing:-.012em;padding-left:2px}
+.ttl small{font:400 12px/1 var(--sans);color:var(--tx-3);letter-spacing:0}
+:global(#sheet:not([data-tab="new"])) .ttl{display:none}

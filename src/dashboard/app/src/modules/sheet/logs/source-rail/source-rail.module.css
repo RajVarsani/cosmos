@@ -1,0 +1,14 @@
+.rail{border-right:1px solid var(--hair);min-height:0;min-width:0;display:grid;grid-template-rows:auto minmax(0,1fr)}
+.cap{padding:12px 14px 8px}
+.list{min-height:0;overflow-y:auto;overflow-x:hidden;padding:0 10px 12px;scrollbar-width:thin;scrollbar-color:var(--hair-2) transparent}
+.none{padding:12px 4px}
+.btn{display:none}
+@media (max-width:1180px){
+  :global(#sheet[data-tab="act"]) .rail{display:none}
+}
+@media (max-width:760px){
+  .rail{border-right:0;border-bottom:1px solid var(--hair);grid-template-rows:auto auto}
+  .list{display:none;max-height:40vh}
+  .open .list{display:block}
+  .cap .btn{display:inline-flex;margin-left:8px;height:26px;padding:0 10px;border-radius:999px;border:1px solid var(--hair-2);font:400 10.5px var(--mono);color:var(--tx-2);align-items:center;text-transform:none;letter-spacing:0}
+}

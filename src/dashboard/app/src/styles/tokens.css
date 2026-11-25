@@ -1,0 +1,50 @@
+:root{
+  --space:#050507;
+  --glass:rgba(16,16,17,.7); --glass-2:rgba(13,13,14,.9); --solid:#111112; --glass-line:rgba(255,255,255,.09); --shadow:0 18px 50px rgba(0,0,0,.55);
+  --tx:#ededeb; --tx-2:#9d9d9a; --tx-3:#6c6c68; --hair:rgba(255,255,255,.075); --hair-2:rgba(255,255,255,.14);
+  --inset:rgba(255,255,255,.045); --inset-2:rgba(255,255,255,.08); --pri:#efefed; --pri-tx:#111; --focus:#efefed; --track:rgba(255,255,255,.09);
+  --err-tx:#ffb3c1; --warn-tx:#ffe1b0; --ok-tx:var(--grn); --go-tx:var(--yel); --tagk:100%;
+  --mag:#f36bf0; --grn:#22e3a0; --yel:#e6ef5a; --vio:#a77bff; --red:#ff5b7a; --cyan:#5ad7ff; --blue:#7fb6ff; --amb:#ffc46b;
+
+  --ink:#111; --black:#000; --lift:rgba(255,255,255,.04); --underline:rgba(255,255,255,.4);
+  --shade-25:rgba(0,0,0,.25); --shade-30:rgba(0,0,0,.3); --shade-35:rgba(0,0,0,.35); --shade-40:rgba(0,0,0,.4);
+  --shade-65:rgba(0,0,0,.65); --shade-70:rgba(0,0,0,.7); --shade-85:rgba(0,0,0,.85);
+  --grn-halo:rgba(34,227,160,.18); --red-halo:rgba(255,91,122,.18);
+  --red-line:rgba(255,91,122,.35); --red-line-2:rgba(255,91,122,.3); --red-wash:rgba(255,91,122,.08); --red-wash-2:rgba(255,91,122,.07); --amb-wash:rgba(255,196,107,.05);
+  --toast-bg:#f0f0ee; --legend-tx:#8a8a86; --vol-line:#4a4a47;
+  --dot-off:#777; --state-dot:#555; --sb-dot:#5a5a57; --tick-off:#3b3b39; --band-dot:#3a3a38; --tick-shade:#0b0b0b;
+  --legend-fe:#f2c98a; --legend-be:#8fa7ff; --legend-infra:#b9b3aa;
+  --label-tx:#f4f3f0; --label-meta:#a7a198; --label-dot:#77726b; --label-em:#cfcac2; --label-off:#a3a09b;
+  --core-meta:#8d8479; --free-tx:#d7d5d0; --pl-tx:#ecebe8; --pl-meta:#96918a; --pl-dim:#85827d; --belt-tx:#b4ada3;
+  --ln-chalk:#ebe8e1; --ln-pencil:#a8a49c; --ln-lead:#6f6c66; --ln-ghost:#3b3a37; --ln-vignette:rgba(255,255,255,.035);
+
+  --sans:'Inter Tight',ui-sans-serif,system-ui,-apple-system,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,monospace;
+  --r:18px; --gap:10px; --m:12px;
+  --ease:cubic-bezier(.2,.8,.2,1);
+  --spring:cubic-bezier(.2,1.12,.32,1);
+  --bar-h:66px;
+  color-scheme:dark;
+}
+/* lines view: warm paper, graphite ink; every surface switches through these */
+[data-view="lines"]{
+  --space:#ebe2cf;
+  --glass:rgba(246,240,227,.8); --glass-2:rgba(243,236,221,.95); --solid:#f3ecdd; --glass-line:rgba(64,50,30,.16); --shadow:0 14px 38px rgba(84,64,34,.16);
+  --tx:#29241d; --tx-2:#5c5447; --tx-3:#857b6c; --hair:rgba(64,50,30,.11); --hair-2:rgba(64,50,30,.22);
+  --inset:rgba(64,50,30,.05); --inset-2:rgba(64,50,30,.1); --pri:#2c2720; --pri-tx:#f5efe2; --focus:#2c2720; --track:rgba(64,50,30,.13);
+  --err-tx:#a11f3a; --warn-tx:#85560a; --tagk:58%;
+  --mag:#a8279f; --grn:#11795a; --yel:#7a7410; --vio:#6236b8; --red:#bd2944; --cyan:#0f7391; --blue:#2c5fae; --amb:#a96500;
+  --ink:#f6f0e3; --black:#3a2f20; --lift:rgba(64,50,30,.04); --underline:rgba(41,36,29,.45);
+  --shade-25:rgba(84,64,34,.12); --shade-30:rgba(84,64,34,.14); --shade-35:rgba(84,64,34,.18); --shade-40:rgba(84,64,34,.2);
+  --shade-65:rgba(235,226,207,.65); --shade-70:rgba(235,226,207,.7); --shade-85:rgba(235,226,207,.85);
+  --grn-halo:rgba(17,121,90,.16); --red-halo:rgba(189,41,68,.15);
+  --red-line:rgba(189,41,68,.4); --red-line-2:rgba(189,41,68,.32); --red-wash:rgba(189,41,68,.08); --red-wash-2:rgba(189,41,68,.06); --amb-wash:rgba(169,101,0,.07);
+  --toast-bg:#2c2720; --legend-tx:#6e6557; --vol-line:#b3a891;
+  --dot-off:#9a9080; --state-dot:#a59b8a; --sb-dot:#9c9282; --tick-off:#cdc3ae; --band-dot:#c3b9a4; --tick-shade:#e4dac5;
+  --legend-fe:#b9741c; --legend-be:#3557b8; --legend-infra:#7b7262;
+  --label-tx:#29241d; --label-meta:#6b6255; --label-dot:#9a9080; --label-em:#3f382e; --label-off:#857b6c;
+  --core-meta:#7a705f; --free-tx:#4a4338; --pl-tx:#2c2720; --pl-meta:#6e6557; --pl-dim:#958b7b; --belt-tx:#6a6152;
+  --ln-chalk:#2a251e; --ln-pencil:#6b6355; --ln-lead:#9b927f; --ln-ghost:#cbc1ab; --ln-vignette:rgba(92,70,36,.1);
+  color-scheme:light;
+}
+@media (max-width:760px){ :root{--m:8px;--bar-h:100px} }

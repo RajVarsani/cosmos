@@ -1,0 +1,2 @@
+.jump{position:absolute;left:50%;bottom:14px;transform:translate(-50%,8px);opacity:0;pointer-events:none;display:inline-flex;align-items:center;height:30px;padding:0 14px;border-radius:999px;background:var(--pri);color:var(--pri-tx);font:400 11px var(--mono);transition:.25s var(--ease);box-shadow:0 8px 24px var(--shade-40)}
+.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}

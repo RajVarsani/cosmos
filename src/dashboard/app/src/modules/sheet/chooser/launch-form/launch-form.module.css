@@ -1,0 +1,8 @@
+.form{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(300px,1fr);gap:0;margin-top:14px;min-height:100%}
+.pfld{padding:14px 18px 18px}
+.pfld+.nwr{border-left:1px solid var(--hair)}
+.nwr{padding:14px 18px 18px;display:grid;gap:14px;align-content:start}
+@media (max-width:1180px){
+  .form{grid-template-columns:minmax(0,1fr)}
+  .pfld+.nwr{border-left:0;border-top:1px solid var(--hair)}
+}

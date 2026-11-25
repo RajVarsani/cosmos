@@ -1,0 +1,10 @@
+.src{height:28px;display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;gap:8px;width:100%;text-align:left;padding:5px 6px;border-radius:8px;font:400 12px var(--mono);color:var(--tx-2)}
+.src:hover{background:var(--inset);color:var(--tx)}
+.src:disabled{opacity:.35;cursor:default}
+.bx{width:11px;height:11px;border-radius:3px;border:1.3px solid var(--tx-3)}
+.src[aria-pressed="true"]{color:var(--tx)}
+.src[aria-pressed="true"] .bx{background:var(--c);border-color:var(--c);box-shadow:0 0 8px color-mix(in srgb,var(--c) 60%,transparent)}
+.nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hd{width:6px;height:6px;border-radius:50%;background:var(--hair-2)}
+.ok{background:var(--grn)}
+.ec{font:500 9px/1 var(--mono);color:var(--ink);background:var(--red);border-radius:99px;padding:3px 5px}

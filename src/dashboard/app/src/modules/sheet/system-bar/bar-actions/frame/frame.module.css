@@ -1,0 +1,5 @@
+.acts{grid-area:acts;display:grid;grid-auto-flow:column;justify-content:start;align-items:center;gap:2px}
+.vsep{width:1px;height:18px;background:var(--hair-2);margin:0 6px}
+@media (max-width:760px){
+  .acts [data-k="copy"],.acts .vsep{display:none}
+}

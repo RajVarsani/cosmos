@@ -1,0 +1,5 @@
+.pulse{font:400 11px var(--mono);color:var(--tx-2);display:flex;align-items:center;gap:7px;white-space:nowrap;padding:0 6px 0 2px;min-width:0;overflow:hidden}
+.pulse i{width:6px;height:6px;border-radius:50%;background:var(--grn);box-shadow:0 0 0 3px var(--grn-halo);flex:none}
+.off i{background:var(--red);box-shadow:0 0 0 3px var(--red-halo)}
+.pulse b{font-weight:400;color:var(--tx)}
+@media (max-width:760px){ .xt{display:none} }

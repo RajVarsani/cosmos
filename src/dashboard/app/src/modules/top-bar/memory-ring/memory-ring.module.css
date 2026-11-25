@@ -1,0 +1,2 @@
+.gmini{position:relative;display:flex;align-items:center;flex:none}
+@media (max-width:760px){ .gmini{display:none} }

@@ -1,0 +1,1 @@
+.mem{grid-area:mem;justify-self:end;display:grid;grid-auto-flow:column;align-items:center;gap:8px;font:400 11.5px var(--mono);color:var(--tx-2);white-space:nowrap}

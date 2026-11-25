@@ -1,0 +1,4 @@
+.legend{display:grid;grid-auto-flow:column;gap:12px;font:400 10.5px var(--mono);color:var(--legend-tx);pointer-events:none}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend span::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--k)}
+@media (max-width:1180px){ .legend{display:none} }

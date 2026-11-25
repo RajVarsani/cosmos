@@ -1,0 +1,7 @@
+.sel{grid-area:sel;height:28px;display:flex;align-items:center;gap:6px;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;min-width:0}
+.sel::-webkit-scrollbar{display:none}
+.none{font:400 11px var(--mono);color:var(--tx-3);white-space:nowrap}
+.pill{flex:none;height:26px;padding:0 8px 0 10px;border-radius:999px;background:color-mix(in srgb,var(--c) 16%,transparent);border:1px solid color-mix(in srgb,var(--c) 40%,transparent);font:400 11px var(--mono);color:var(--tx);display:inline-flex;align-items:center;gap:7px}
+.pill i{width:6px;height:6px;border-radius:50%;background:var(--c)}
+.pill span{color:var(--tx-3);font-size:13px;line-height:1}
+.pill:hover span{color:var(--tx)}

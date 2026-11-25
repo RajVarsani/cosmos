@@ -1,0 +1,5 @@
+.tag{height:18px;padding:0 7px;border-radius:999px;border:1px solid currentColor;font:400 10.5px/16px var(--mono);color:var(--tx-3);transition:color .15s,background .15s}
+.tag[data-tone="on"],.tag[data-tone="go"]{color:var(--cyan)}
+.tag[data-tone="on"]{background:color-mix(in srgb,var(--cyan) 10%,transparent)}
+.tag[data-tone="warn"]{color:var(--amb);background:var(--amb-wash)}
+.tag:hover{background:var(--inset-2)}

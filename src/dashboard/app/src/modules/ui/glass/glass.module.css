@@ -1,0 +1,2 @@
+.glass{background:var(--glass);-webkit-backdrop-filter:blur(14px) saturate(1.25);backdrop-filter:blur(14px) saturate(1.25);border:1px solid var(--glass-line);box-shadow:var(--shadow);color:var(--tx)}
+@media (prefers-reduced-transparency: reduce){ .glass{background:var(--solid);-webkit-backdrop-filter:none;backdrop-filter:none} }

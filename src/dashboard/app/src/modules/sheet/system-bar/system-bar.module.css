@@ -1,0 +1,4 @@
+.sbar{flex:none;height:var(--bar-h);display:grid;grid-template-columns:minmax(0,max-content) minmax(60px,1fr) auto auto;grid-template-areas:"id hp mem acts";align-items:center;gap:18px;padding:0 8px 0 18px}
+@media (max-width:760px){
+  .sbar{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"id acts" "hp mem";gap:8px 12px;padding:0 6px 0 14px}
+}

@@ -1,0 +1,5 @@
+.exp{position:relative}
+.exp svg{transition:transform .42s var(--spring)}
+:global(#sheet:not([data-mini])) .exp svg{transform:rotate(180deg)}
+.exp kbd{position:absolute;right:100%;top:50%;margin:-8px 4px 0 0;opacity:0;pointer-events:none;transition:opacity .15s}
+.exp:hover kbd,.exp:focus-visible kbd{opacity:1}

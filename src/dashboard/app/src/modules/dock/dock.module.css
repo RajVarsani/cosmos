@@ -1,0 +1,2 @@
+.dock{right:var(--m);bottom:var(--m);display:grid;grid-auto-flow:column;align-items:center;gap:14px}
+:global(body.sheet-on) .dock{opacity:0;pointer-events:none}
