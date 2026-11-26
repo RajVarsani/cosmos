@@ -6,11 +6,11 @@ description: Spin up, use and tear down isolated instances of a project's stack 
 # cosmos
 
 `cosmos` runs isolated instances of the project whose `cosmos.yaml` it finds (walking up from the cwd, or
-`--project <dir>`). It is a per-project dev dependency (`bun add -d @rajvarsani/cosmos`); run it as
-`bunx cosmos <cmd>` from that project (the dir with `cosmos.yaml`, or the one whose `package.json` has the
-dependency). Below, `cosmos <cmd>` means `bunx cosmos <cmd>`. Every command takes `--json`; always pass it
+`--project <dir>`). It is installed once per user (`bun add -g @rajvarsani/cosmos`); run `cosmos <cmd>` from
+anywhere inside the project. The project's `cosmos.yaml` names the minimum cosmos it needs and an older install
+refuses it with the upgrade command. Every command takes `--json`; always pass it
 and parse the output. `cosmos --help` is the reference for commands and flags. This skill says when and how to
-use them safely. The project's own docs (next to its `cosmos.yaml`, usually `cosmos/README.md`) add its rules: which backends are live, which profile
+use them safely. The project's own docs (its README, beside `cosmos.yaml`) add its rules: which backends are live, which profile
 to pick, where the seeded login is. Read them before the first `up`.
 
 `cosmos doctor --json` checks the machine and shows which container runtime is active.
@@ -54,7 +54,7 @@ short, pick a lighter profile or report it; do not stop other people's instances
 Name the instance after what you are working on, free text is fine:
 
 ```
-bunx cosmos up --backend <backend> --profile <profile> --name "Letter Platform" --json
+cosmos up --backend <backend> --profile <profile> --name "Letter Platform" --json
 ```
 
 - The id is the slug (`letter-platform`). Use that id in every later command.
@@ -82,7 +82,7 @@ Check any `warnings` and `cors` entries with `allowed: false` before trusting th
 ## Confirm ready
 
 ```
-bunx cosmos status letter-platform --json
+cosmos status letter-platform --json
 ```
 
 Each service has `running`, `health` and, for HTTP services, `http.ok`. Ready means every long-running service
@@ -98,7 +98,7 @@ When the project seeds a test user, its `cosmos.yaml` has a `login:` block, and 
 ## Logs and debugging
 
 ```
-bunx cosmos logs letter-platform <svc> --tail 200 --json
+cosmos logs letter-platform <svc> --tail 200 --json
 ```
 
 The service defaults to the instance's main frontend. Skip `-f` (it never returns). `cosmos seed <name>`
@@ -120,7 +120,7 @@ commands yourself and never stop a zrok process or delete a zrok name cosmos did
 When the work is finished, remove what you created:
 
 ```
-bunx cosmos rm letter-platform --json
+cosmos rm letter-platform --json
 ```
 
 `rm` drops volumes and frees the slot. `down` only stops it (keeps the slot and data). Leave nothing running

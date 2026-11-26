@@ -236,7 +236,7 @@ function help(): string {
     if (hasProject()) backends = BACKENDS().map((b) => [b.id, ...b.aliases].join("|")).join(" ");
   } catch {}
   return `cosmos: isolated instances of a project's stack on one machine
-Install per project (bun add -d @rajvarsani/cosmos) and run as bunx cosmos <command>.
+Install once per user (bun add -g @rajvarsani/cosmos) and run cosmos <command> inside a project with a cosmos.yaml.
 
   cosmos up --backend <b> [--profile P] [--name N|"Free Text"] [--branch svc=ref ... [--live]] [--direct] [--no-air] [--keep-on-failure] [--build] [--source-images] [--poll | --no-poll] [--timeout S] [--skip-doctor] [--share]
       backends: ${backends}
