@@ -18,10 +18,27 @@ bunx cosmos --help
 | --- | --- | --- |
 | package | where it is installed | code, `docker/go-air.Dockerfile`, the prebuilt dashboard |
 | project | `--project <dir>`, `COSMOS_PROJECT`, or the nearest dir upward with `cosmos.yaml` | `cosmos.yaml`, the adapter, the compose file |
-| home | `COSMOS_HOME` (default `~/.cosmos`) | `.state/`, `instances/`, `envs/`, `vendor/<projectId>`, `cosmos.local.yaml` |
+| home | `COSMOS_HOME` (default `~/.cosmos`) | the machine registry and one dir per project (see State layout) |
 
 `vendor/<projectId>` is a detached worktree of the project at its HEAD; cosmos moves it when HEAD moves and no
 instance is running.
+
+## State layout
+
+| Path under `COSMOS_HOME` | Scope | Holds | Compatibility |
+| --- | --- | --- | --- |
+| `registry.json`, `registry.lock` | machine | one claim per instance: projectId, project dir, slot, container prefix, owner pid, zrok names | additive only; writers keep unknown fields; a newer `version` is refused |
+| `.state/` | machine | docker build lock, dashboard pid and log, doctor marker | |
+| `cosmos.local.yaml` | machine | local overrides (env sources, share limits) | |
+| `projects/<projectId>/.state/state.json` | project | instance records, stamped `version` and `writtenBy` | refused when written by a cosmos outside this one's caret range |
+| `projects/<projectId>/.state/{shares,failures,ops,git}`, `measure.json` | project | share configs and logs, failure logs, locks, image memory | |
+| `projects/<projectId>/{instances,envs,vendor}` | project | per-instance worktrees and overrides, env copies, vendored worktrees | |
+| `projects/<projectId>/cosmos.local.yaml` | project | overrides on top of the machine file | |
+
+`cosmos.yaml` may pin `cosmos: ">=0.2.0"`; a newer `schemaVersion` or an unmet range is refused with the upgrade
+command. A 0.1 layout (`.state/state.json`, `instances/`, `envs/`, `vendor/`) is migrated on the first command in a
+project: its instances and dirs move, old paths become symlinks, and `.state/state.json` is kept as
+`state.json.migrated`. `cosmos doctor` reaps claims whose project dir is gone, or whose containers and record are gone.
 
 ## Project contract
 
