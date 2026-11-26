@@ -1,8 +1,8 @@
 // Every cosmos action lives here; the CLI and the dashboard are thin callers of these functions.
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
-import { STATE_DIR } from "./paths";
-import { readState, withState, slotCandidates, ownerInfo, type CorsCheck, type Instance, type State } from "./state";
+import { projectStateDir } from "./paths";
+import { readState, withState, slotCandidates, reservedNames, ownerInfo, type CorsCheck, type Instance, type State } from "./state";
 import { BASE_PORT, EDGE_OFFSETS, SLOT_STRIDE, hostPort, OFFSETS } from "./offsets";
 import { busyPorts, portOwner } from "./ports";
 import { syncEnvs } from "./envfile";
@@ -250,11 +250,11 @@ async function checkInstanceCors(i: Pick<Instance, "ports">, direct: StackOut["d
 
 // ---------- per-instance operation lock: one up/down/rm at a time, from the CLI or the dashboard ----------
 
-const opLockDir = (name: string) => join(STATE_DIR, "ops", `${name}.lock`);
+const opLockDir = (name: string) => join(projectStateDir(), "ops", `${name}.lock`);
 
 function tryOpLock(name: string): DirLock {
   const l = new DirLock(opLockDir(name), { staleMs: Infinity, waitMs: 0 });
-  mkdirSync(join(STATE_DIR, "ops"), { recursive: true });
+  mkdirSync(join(projectStateDir(), "ops"), { recursive: true });
   // a dead holder's lock is broken on the first try and taken on the next
   if (!l.tryAcquire() && !l.tryAcquire()) {
     let holder = "";
@@ -501,9 +501,10 @@ async function upCore(o: UpOpts, r: Reporter): Promise<UpResult> {
   let opLock: DirLock | null = null;
   const { inst, fresh } = await withState(async (s) => {
     const id = (() => {
-      try { return resolveIdentity(o.name, Object.values(s.instances)); } catch (e) { throw new CosmosError((e as Error).message); }
+      try { return resolveIdentity(o.name, Object.values(s.instances), reservedNames(s)); } catch (e) { throw new CosmosError((e as Error).message); }
     })();
     const existing = id.explicit ? s.instances[id.name] : undefined;
+    if (!existing && reservedNames(s).includes(id.name)) throw new CosmosError(`instance name ${id.name} is held by another project on this machine; pick another name`);
     if (existing) {
       if (existing.backend !== backend.id) throw new CosmosError(`instance ${existing.name} exists with backend ${existing.backend}; rm it first`);
       if (profileOf(existing) !== profile.id) throw new CosmosError(`instance ${existing.name} exists with profile ${profileOf(existing)}; rm it first`);
@@ -658,8 +659,8 @@ async function upCore(o: UpOpts, r: Reporter): Promise<UpResult> {
     if (created.length && existsSync(overridePath(inst.name))) {
       const l = await compose(inst.name, ["logs", "--no-color", "--tail", "300", ...created], {}).catch(() => null);
       if (l) {
-        mkdirSync(join(STATE_DIR, "failures"), { recursive: true });
-        failLog = join(STATE_DIR, "failures", `${inst.name}-${new Date().toISOString().replace(/[:.]/g, "-")}.log`);
+        mkdirSync(join(projectStateDir(), "failures"), { recursive: true });
+        failLog = join(projectStateDir(), "failures", `${inst.name}-${new Date().toISOString().replace(/[:.]/g, "-")}.log`);
         writeFileSync(failLog, `${(e as Error).message}\n\n${l.stdout}${l.stderr}`);
         r.log(`logs of ${created.join(", ")} saved to ${failLog}`);
       }

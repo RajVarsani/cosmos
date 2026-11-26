@@ -1,7 +1,9 @@
 import { mkdirSync, readFileSync, writeFileSync, renameSync, existsSync } from "fs";
 import { join } from "path";
 import { withLock } from "./lock";
-import { LOCK_DIR, STATE_DIR, STATE_FILE } from "./paths";
+import { REGISTRY_LOCK_DIR, STATE_DIR, projectId, projectStateDir, stateFile } from "./paths";
+import { CosmosError } from "./errors";
+import { checkVersion, foreignClaims, readRegistry, reconcile, writeRegistry, type Claim } from "./registry";
 import { MAX_SLOT } from "./offsets";
 import type { EdgeRoute } from "./edge";
 import type { Share } from "./share";
@@ -49,26 +51,52 @@ export type Instance = {
 export type CorsCheck = { fe: string; origin: string; target: string; allowed: boolean; acao: string | null; credentials: boolean; status: number | null; error?: string };
 
 // pendingRelease: zrok names rm could not release; the next share retries them
-export type State = { version: 1; instances: Record<string, Instance>; pendingRelease?: string[] };
+// machine: other projects' slot and name claims from the registry (never persisted); slots and names they hold are not free
+export type State = { version: 1; instances: Record<string, Instance>; pendingRelease?: string[]; machine?: Claim[] };
+const STATE_VERSION = 1;
 
 const LOCK_OPTS = { staleMs: 10 * 60_000, waitMs: 120_000 };
 
-// Holds the lock for the whole callback; state mutations inside are persisted atomically on return.
+// Holds the machine lock for the whole callback (slot and name claims are arbitrated across projects); state mutations
+// are persisted atomically to the project's state file, and this project's claims are synced to the registry on return.
 export async function withState<T>(fn: (s: State) => Promise<T> | T): Promise<T> {
   mkdirSync(STATE_DIR, { recursive: true });
-  return withLock(LOCK_DIR, LOCK_OPTS, async () => {
+  mkdirSync(projectStateDir(), { recursive: true });
+  return withLock(REGISTRY_LOCK_DIR, LOCK_OPTS, async () => {
     const s = readState();
     const out = await fn(s);
-    const tmp = `${STATE_FILE}.${process.pid}.${crypto.randomUUID()}.tmp`;
-    writeFileSync(tmp, JSON.stringify(s, (k, v) => (k === "share" && v && typeof v === "object" ? { ...v, password: undefined } : v), 2) + "\n");
-    renameSync(tmp, STATE_FILE);
+    const file = stateFile();
+    const tmp = `${file}.${process.pid}.${crypto.randomUUID()}.tmp`;
+    writeFileSync(tmp, JSON.stringify(s, (k, v) => (k === "machine" ? undefined : k === "share" && v && typeof v === "object" ? { ...v, password: undefined } : v), 2) + "\n");
+    renameSync(tmp, file);
+    const id = projectId();
+    const next = reconcile(readRegistry(), id, Object.values(s.instances), (p) => p === id || existsSync(join(STATE_DIR, "..", "projects", p, ".state", "state.json")));
+    if (next) writeRegistry(next);
     return out;
   });
 }
 
+// 0.1 kept one state.json for every project in HOME/.state. 0.2 keeps one per project; refuse rather than orphan instances.
+function legacyCheck(): void {
+  const legacy = join(STATE_DIR, "state.json");
+  if (!existsSync(legacy)) return;
+  let n = 0;
+  try {
+    n = Object.keys(JSON.parse(readFileSync(legacy, "utf8")).instances ?? {}).length;
+  } catch {}
+  if (n) throw new CosmosError(`${legacy} holds ${n} instance(s) from cosmos 0.1. cosmos 0.2 keeps state per project (${projectStateDir()}). Remove those instances with cosmos 0.1 (cosmos rm <name>), then delete ${legacy}.`);
+}
+
 export function readState(): State {
-  if (!existsSync(STATE_FILE)) return { version: 1, instances: {} };
-  const s: State = JSON.parse(readFileSync(STATE_FILE, "utf8"));
+  const file = stateFile();
+  const machine = foreignClaims(readRegistry(), projectId());
+  if (!existsSync(file)) {
+    legacyCheck();
+    return Object.defineProperty({ version: 1, instances: {} } as State, "machine", { value: machine, enumerable: false, writable: true, configurable: true });
+  }
+  const s: State = JSON.parse(readFileSync(file, "utf8"));
+  checkVersion("state", file, s.version, STATE_VERSION);
+  Object.defineProperty(s, "machine", { value: machine, enumerable: false, writable: true, configurable: true });
   // records may carry retired profile names; the next write persists the new ones
   for (const i of Object.values(s.instances)) {
     if (i.profile) i.profile = canonicalProfile(i.profile);
@@ -99,15 +127,18 @@ function dropRetired(i: Instance): void {
 
 function sharePassword(name: string): string | null {
   try {
-    return JSON.parse(readFileSync(join(STATE_DIR, "shares", `${name}.json`), "utf8")).auth?.password ?? null;
+    return JSON.parse(readFileSync(join(projectStateDir(), "shares", `${name}.json`), "utf8")).auth?.password ?? null;
   } catch {
     return null;
   }
 }
 
 export function usedSlots(s: State): Set<number> {
-  return new Set(Object.values(s.instances).map((i) => i.slot));
+  return new Set([...Object.values(s.instances).map((i) => i.slot), ...(s.machine ?? []).map((c) => c.slot)]);
 }
+
+// instance names other projects hold: container names are machine-wide, so these are not free here
+export const reservedNames = (s: State): string[] => (s.machine ?? []).map((c) => c.instance);
 
 export function slotCandidates(s: State): number[] {
   const used = usedSlots(s);

@@ -275,7 +275,7 @@ function help(): string {
   cosmos dashboard [--port N] [--detach | --stop | --status]   web console on http://127.0.0.1:<port> (default ${BASE_PORT}, or COSMOS_DASHBOARD_PORT)
 
 The project is the nearest dir upward with a cosmos.yaml, or --project <dir> (COSMOS_PROJECT).
-State, instances, env copies and vendored worktrees live in COSMOS_HOME (now ${HOME}).
+Project state (instances, env copies, vendored worktrees) lives in ${HOME}/projects/<projectId>; slot and name claims live in ${HOME}/.state/registry.json. COSMOS_HOME moves both.
 All commands take --json. Host port = ${BASE_PORT} + 100*slot + offset (offsets in cosmos.yaml); slot 0 is never assigned.`;
 }
 

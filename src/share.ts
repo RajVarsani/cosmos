@@ -4,7 +4,7 @@ import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, 
 import { createHash, randomBytes } from "crypto";
 import { userInfo } from "os";
 import { join } from "path";
-import { PKG_ROOT, STATE_DIR } from "./paths";
+import { PKG_ROOT, projectStateDir } from "./paths";
 import { run } from "./sh";
 import { containerName } from "./generate";
 import { localConfig } from "./project";
@@ -40,13 +40,13 @@ export type Share = {
   reservedName?: boolean;
 };
 
-export const SHARES_DIR = join(STATE_DIR, "shares");
+export const sharesDir = () => join(projectStateDir(), "shares");
 export const SHARE_USER = "cosmos";
 export const ZROK_HOST = "shares.zrok.io";
 const PROXY = join(PKG_ROOT, "src", "share-proxy.ts");
-const shareFile = (name: string, ext: string) => join(SHARES_DIR, `${name}.${ext}`);
+const shareFile = (name: string, ext: string) => join(sharesDir(), `${name}.${ext}`);
 export const shareLogs = (name: string) => ({ proxy: shareFile(name, "proxy.log"), zrok: shareFile(name, "zrok.log"), preview: shareFile(name, "preview.log") });
-export const previewDir = (name: string) => join(SHARES_DIR, name, "preview");
+export const previewDir = (name: string) => join(sharesDir(), name, "preview");
 export const statusFile = (name: string) => shareFile(name, "status.json");
 export const previewContainer = (name: string, fe: string) => containerName(name, `${fe}-preview`);
 
@@ -124,7 +124,7 @@ export async function shareState(s: Share, instanceUp: boolean): Promise<{ state
 
 function spawnDetached(argv: string[], log: string): number {
   const fd = openSync(log, "a", 0o600);
-  const p = Bun.spawn(argv, { cwd: STATE_DIR, stdin: "ignore", stdout: fd, stderr: fd, detached: true });
+  const p = Bun.spawn(argv, { cwd: projectStateDir(), stdin: "ignore", stdout: fd, stderr: fd, detached: true });
   p.unref();
   closeSync(fd);
   return p.pid;
@@ -299,7 +299,7 @@ export async function startShare(o: StartShare): Promise<Share> {
   if (!bin) throw new Error("zrok is not installed (brew install zrok); cosmos doctor checks it");
   const info = await zrokInfo(false);
   if (!info.enabled) throw new Error("this Mac's zrok environment is not enabled (zrok enable <token>); cosmos never enables or disables it for you");
-  mkdirSync(SHARES_DIR, { recursive: true, mode: 0o700 });
+  mkdirSync(sharesDir(), { recursive: true, mode: 0o700 });
   const name = o.inst.name;
   const prev = readConfig(name);
   const auth = o.public ? null : prev?.auth ?? { user: SHARE_USER, password: randomBytes(12).toString("base64url") };
@@ -357,7 +357,7 @@ export async function stopShare(name: string, s: Share, o: { keep: boolean }) {
   if (s.previewContainer) await removePreview(s.previewContainer);
   if (o.keep) return;
   for (const f of [shareFile(name, "json"), statusFile(name), ...Object.values(shareLogs(name))]) rmSync(f, { force: true });
-  rmSync(join(SHARES_DIR, name), { recursive: true, force: true });
+  rmSync(join(sharesDir(), name), { recursive: true, force: true });
 }
 
 export function sharePassword(name: string): string | null {

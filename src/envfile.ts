@@ -1,6 +1,6 @@
 import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync } from "fs";
 import { join } from "path";
-import { ENVS_DIR } from "./paths";
+import { envsDir } from "./paths";
 
 export function parseDotenv(text: string): Record<string, string> {
   const out: Record<string, string> = {};
@@ -35,7 +35,7 @@ export function copyMissing(from: string, to: string, filter: (rel: string) => b
   return copied;
 }
 
-export const envDir = (bundle: string) => join(ENVS_DIR, bundle);
+export const envDir = (bundle: string) => join(envsDir(), bundle);
 
 // Copies env files cosmos needs into HOME/envs/<bundle> (never overwrites a file already there).
 export async function syncEnvs(log: (m: string) => void = () => {}) {

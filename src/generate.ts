@@ -1,7 +1,7 @@
 import { join } from "path";
-import { INSTANCES_DIR } from "./paths";
+import { instancesDir } from "./paths";
 
-export const instanceDir = (name: string) => join(INSTANCES_DIR, name);
+export const instanceDir = (name: string) => join(instancesDir(), name);
 export const overridePath = (name: string) => join(instanceDir(name), "compose.override.yml");
 export const projectName = (name: string) => `cosmos-${name}`;
 export const containerName = (name: string, svc: string) => `cosmos-${name}-${svc}`;

@@ -35,9 +35,9 @@ const capitalise = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 // A valid slug is an id (explicit: may name an existing instance). Free text reuses the instance already carrying that label
 // (or an unlabelled one whose id is its slug); otherwise it mints a fresh id from the slug.
-export function resolveIdentity(input: string | undefined, existing: Iterable<{ name: string; label?: string }>): { name: string; label: string; explicit: boolean } {
+export function resolveIdentity(input: string | undefined, existing: Iterable<{ name: string; label?: string }>, reserved: Iterable<string> = []): { name: string; label: string; explicit: boolean } {
   const inst = [...existing];
-  const taken = inst.map((i) => i.name);
+  const taken = [...inst.map((i) => i.name), ...reserved];
   const typed = input?.trim();
   if (!typed) {
     const name = pickStarName(taken);

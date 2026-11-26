@@ -7,7 +7,7 @@ import { copyMissing, parseDotenv } from "./envfile";
 import { CosmosError } from "./errors";
 import { containerName, instanceDir } from "./generate";
 import { hostPort } from "./offsets";
-import { ENVS_DIR, HOME, PKG_ROOT, STATE_DIR, projectDir } from "./paths";
+import { HOME, PKG_ROOT, envsDir, projectDir, projectStateDir } from "./paths";
 import { waitHttp, workers } from "./probe";
 import { GIT_ENV, run } from "./sh";
 import { composeBuildSpec, composeDoc, extraBuildSpec, gitHead, goAirSpec, h12, rewriteLocalPorts, writeEnvFile } from "./stack";
@@ -44,8 +44,8 @@ export function ctx(): AdapterContext {
   context = {
     project: { dir: projectDir(), id: m.projectId, manifest: m },
     paths: {
-      pkgRoot: PKG_ROOT, home: HOME, stateDir: STATE_DIR, envsDir: ENVS_DIR, vendorDir: vendorDir(), composeFile: composeFile(),
-      vendorSvcDir, extraDir, instanceDir, envDir: (b: string) => join(ENVS_DIR, b),
+      pkgRoot: PKG_ROOT, home: HOME, stateDir: projectStateDir(), envsDir: envsDir(), vendorDir: vendorDir(), composeFile: composeFile(),
+      vendorSvcDir, extraDir, instanceDir, envDir: (b: string) => join(envsDir(), b),
     },
     log: (msg: string) => console.error(`[cosmos] ${msg}`),
     run, GIT_ENV, parseDotenv, writeEnvFile, copyMissing: (from, to, filter) => copyMissing(from, to, filter),

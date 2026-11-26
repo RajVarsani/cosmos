@@ -1,7 +1,7 @@
 // Per-instance source: one git worktree per source-mounted service, made from the project's submodule checkout.
 import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync } from "fs";
 import { join, resolve } from "path";
-import { INSTANCES_DIR, STATE_DIR } from "./paths";
+import { instancesDir, projectStateDir } from "./paths";
 import { initCheck } from "./project";
 import { manifest, repoOf, svcDef } from "./catalog";
 import { projectDir } from "./paths";
@@ -9,7 +9,7 @@ import { withLock } from "./lock";
 import { pinnedSha } from "./vendor";
 import { GIT_ENV, run } from "./sh";
 
-export const instanceSrcDir = (name: string, svc: string) => join(INSTANCES_DIR, name, "src", svc);
+export const instanceSrcDir = (name: string, svc: string) => join(instancesDir(), name, "src", svc);
 // services an instance runs from a bind-mounted checkout
 export const srcServices = (services: string[]) => services.filter((s) => svcDef(s).srcMount);
 
@@ -42,7 +42,7 @@ export async function svcRepo(svc: string): Promise<string> {
 }
 
 // one git-mutating step per service repo at a time
-const repoLock = <T>(svc: string, fn: () => Promise<T>) => withLock(join(STATE_DIR, "git", `${svc}.lock`), { staleMs: 10 * 60_000, waitMs: 5 * 60_000 }, fn);
+const repoLock = <T>(svc: string, fn: () => Promise<T>) => withLock(join(projectStateDir(), "git", `${svc}.lock`), { staleMs: 10 * 60_000, waitMs: 5 * 60_000 }, fn);
 
 export const isWorktree = (dir: string) => existsSync(join(dir, ".git"));
 
@@ -56,7 +56,7 @@ async function worktrees(repo: string): Promise<Wt[]> {
   });
 }
 
-const cosmosOwned = (path: string) => real(path).startsWith(real(INSTANCES_DIR) + "/");
+const cosmosOwned = (path: string) => real(path).startsWith(real(instancesDir()) + "/");
 
 // The working dir of a listed worktree: a submodule's own checkout lists as its gitdir, so read its core.worktree.
 async function workDir(path: string): Promise<string> {
@@ -78,7 +78,7 @@ export async function liveCheckout(svc: string, path: string): Promise<string | 
 
 // "instance vega" for a cosmos worktree, else the path (the project clone or the user's own worktrees)
 export function holderOf(path: string): string {
-  const m = real(path).startsWith(real(INSTANCES_DIR) + "/") ? real(path).slice(real(INSTANCES_DIR).length + 1).split("/") : null;
+  const m = real(path).startsWith(real(instancesDir()) + "/") ? real(path).slice(real(instancesDir()).length + 1).split("/") : null;
   if (m && m[1] === "src") return `instance ${m[0]}`;
   // a submodule's own checkout lists as its gitdir, <clone>/.git/modules/<path>
   const sub = path.match(/^(.*)\/\.git\/modules\/(.+)$/);
@@ -100,7 +100,7 @@ export async function ensureWorktree(name: string, svc: string, at: string, log:
   await repoLock(svc, async () => {
     await git(repo, ["worktree", "prune"]);
     if (existsSync(dir) && readdirSync(dir).length) throw new Error(`${dir} exists, is not empty and is not a git worktree`);
-    mkdirSync(join(INSTANCES_DIR, name, "src"), { recursive: true });
+    mkdirSync(join(instancesDir(), name, "src"), { recursive: true });
     await must(repo, ["worktree", "add", "--detach", dir, at]);
   });
   log(`${svc}: worktree ${at.slice(0, 8)} -> ${dir}`);
@@ -279,7 +279,7 @@ async function ffBlocker(dir: string, up: string): Promise<string | null> {
 
 // Worktree directories an instance has, whatever its state record says.
 export function instanceWorktrees(name: string): { svc: string; dir: string }[] {
-  const root = join(INSTANCES_DIR, name, "src");
+  const root = join(instancesDir(), name, "src");
   if (!existsSync(root)) return [];
   return readdirSync(root).map((svc) => ({ svc, dir: join(root, svc) })).filter((w) => isWorktree(w.dir));
 }

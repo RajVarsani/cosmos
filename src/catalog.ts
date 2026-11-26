@@ -1,7 +1,7 @@
 // The project manifest (cosmos.yaml): services, backends, profiles, login and extras. Pure data plus validation.
 import { existsSync, readFileSync, statSync } from "fs";
 import { dirname, join, resolve } from "path";
-import { VENDOR_ROOT, manifestPath, projectDir } from "./paths";
+import { COSMOS_VERSION, manifestPath, projectDir, vendorRoot } from "./paths";
 
 export type SvcKind = "infra" | "init" | "app" | "fe";
 
@@ -94,7 +94,7 @@ const EDGE_DEF: SvcDef = { svc: EDGE_SVC, kind: "app", health: null, estMiB: 30 
 // offsets cosmos keeps for itself: the edge listeners and the share proxy
 export const RESERVED_OFFSETS = { edge: [40, 49], share: 60 } as const;
 
-const TOP_KEYS = ["schemaVersion", "projectId", "compose", "sourcesDir", "adapter", "network", "composeEnvFiles", "envSources", "prefetch", "defaults", "services", "backends", "stages", "legacyProfiles", "retiredServices", "login", "images", "extras", "profiles"];
+const TOP_KEYS = ["schemaVersion", "cosmos", "projectId", "compose", "sourcesDir", "adapter", "network", "composeEnvFiles", "envSources", "prefetch", "defaults", "services", "backends", "stages", "legacyProfiles", "retiredServices", "login", "images", "extras", "profiles"];
 const SVC_KEYS = ["kind", "offset", "containerPort", "extraPorts", "health", "srcMount", "go", "goMain", "estMiB", "repo", "uses", "hostPort", "origin", "remote", "ready", "url", "workers", "syncDeps", "extra", "dependsOn", "calledBy"];
 const PROFILE_KEYS = ["title", "about", "backend", "default", "services"];
 const reEsc = (s: string) => s.replace(/[.*+?^${}()|[\]\\\/-]/g, "\\$&");
@@ -131,6 +131,16 @@ function parse(file: string, text: string): Manifest {
   if (!doc || typeof doc !== "object" || Array.isArray(doc)) fail(1, "expected a map at the top level");
   for (const k of Object.keys(doc)) if (!TOP_KEYS.includes(k)) fail(keyLine(k, 0), `unknown top-level key "${k}" (allowed: ${TOP_KEYS.join(", ")})`);
   if (doc.schemaVersion !== 1) fail(keyLine("schemaVersion", 0), `schemaVersion must be 1 (this cosmos reads version 1)`);
+  if (doc.cosmos !== undefined) {
+    const range = typeof doc.cosmos === "string" && doc.cosmos ? doc.cosmos : fail(keyLine("cosmos", 0), "cosmos must be a semver range such as \">=0.2.0\"");
+    let ok = false;
+    try {
+      ok = Bun.semver.satisfies(COSMOS_VERSION, range);
+    } catch {
+      fail(keyLine("cosmos", 0), `cosmos: "${range}" is not a semver range`);
+    }
+    if (!ok) fail(keyLine("cosmos", 0), `this project needs cosmos ${range}; installed ${COSMOS_VERSION}. Update it: bun add -d @rajvarsani/cosmos@latest`);
+  }
   const str = (k: string, v: unknown, line: number) => (typeof v === "string" && v ? v : fail(line, `${k} must be a non-empty string`));
   const strList = (k: string, v: unknown, line: number): string[] => (Array.isArray(v) && v.every((x) => typeof x === "string") ? v : fail(line, `${k} must be a list of strings`));
   const map = (k: string, v: unknown, line: number): Record<string, any> => (v && typeof v === "object" && !Array.isArray(v) ? v : fail(line, `${k} must be a map`));
@@ -273,7 +283,7 @@ function parse(file: string, text: string): Manifest {
     for (const [id, raw] of Object.entries<any>(map("extras", doc.extras, n))) {
       const line = keyLine(id, 2, n - 1);
       const r = map(`extras.${id}`, raw, line);
-      if (id === projectId) fail(line, `extras.${id}: an extra cannot share the project id (both vendor into ${VENDOR_ROOT}/<id>)`);
+      if (id === projectId) fail(line, `extras.${id}: an extra cannot share the project id (both vendor into <home>/projects/<projectId>/vendor/<id>)`);
       const sha = str(`extras.${id}.sha`, r.sha, line);
       if (!/^[0-9a-f]{40}$/.test(sha)) fail(line, `extras.${id}.sha must be a full commit sha`);
       extras.push({ id, url: str(`extras.${id}.url`, r.url, line), ref: String(r.ref ?? ""), sha, dockerfile: String(r.dockerfile ?? "Dockerfile") });
@@ -290,7 +300,7 @@ function parse(file: string, text: string): Manifest {
 
 // Hard dependencies from the project's compose (depends_on), and soft ones: http://<svc>: URLs in a service's environment,
 // plus the manifest's dependsOn and calledBy for services that are not in the compose file.
-export function composeDeps(m: Pick<Manifest, "services" | "compose" | "projectId">, composeFile = join(VENDOR_ROOT, m.projectId, m.compose)): { hard: Record<string, string[]>; calls: Record<string, string[]> } {
+export function composeDeps(m: Pick<Manifest, "services" | "compose" | "projectId">, composeFile = join(vendorRoot(), m.projectId, m.compose)): { hard: Record<string, string[]>; calls: Record<string, string[]> } {
   const hard: Record<string, string[]> = {};
   const calls: Record<string, string[]> = {};
   const file = existsSync(composeFile) ? composeFile : join(projectDir(), m.compose);
@@ -368,10 +378,10 @@ export const BACKENDS = () => manifest().backends;
 export const CONFIG_FILE = () => manifest().file;
 export const projectId = () => manifest().projectId;
 // HOME/vendor/<projectId>: a detached worktree of the project at its HEAD (compose file, Dockerfiles, pinned sources)
-export const vendorDir = () => join(VENDOR_ROOT, projectId());
+export const vendorDir = () => join(vendorRoot(), projectId());
 export const composeFile = () => join(vendorDir(), manifest().compose);
 export const vendorSvcDir = (svc: string) => join(vendorDir(), manifest().sourcesDir, svc);
-export const extraDir = (id: string) => join(VENDOR_ROOT, id);
+export const extraDir = (id: string) => join(vendorRoot(), id);
 export const adapterPath = () => {
   const a = manifest().adapter;
   return a ? resolve(dirname(manifest().file), a) : null;

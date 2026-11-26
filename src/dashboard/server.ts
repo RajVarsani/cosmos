@@ -3,7 +3,7 @@ import { existsSync } from "fs";
 import * as ops from "../ops";
 import { CosmosError } from "../ops";
 import { resolveIdentity } from "../names";
-import { readState, slotCandidates, type Instance } from "../state";
+import { readState, reservedNames, slotCandidates, type Instance } from "../state";
 import { cosmosContainers, containerStats, vmMemory, type CosmosContainer, type MemStat, type VmMem } from "../docker";
 import { projectDir } from "../paths";
 import { BASE_PORT, MAX_SLOT, SLOT_STRIDE, OFFSETS } from "../offsets";
@@ -610,7 +610,7 @@ export function serve(hostname: string, port: number) {
           // a label resolves to its instance before the busy/exists checks
           let target: string | null = null;
           if (name) {
-            const id = resolveIdentity(name, Object.values(readState().instances));
+            const id = resolveIdentity(name, Object.values(readState().instances), reservedNames(readState()));
             if (id.explicit) target = id.name;
           }
           if (target) {
