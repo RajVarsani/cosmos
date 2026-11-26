@@ -237,10 +237,12 @@ function help(): string {
     if (hasProject()) backends = BACKENDS().map((b) => [b.id, ...b.aliases].join("|")).join(" ");
   } catch {}
   return `cosmos: isolated instances of a project's stack on one machine
+Install per project (bun add -d @rajvarsani/cosmos) and run as bunx cosmos <command>.
 
-  cosmos up --backend <b> [--profile P] [--name N|"Free Text"] [--branch svc=ref ... [--live]] [--direct] [--no-air] [--keep-on-failure] [--build] [--source-images] [--poll] [--timeout S] [--skip-doctor] [--share]
+  cosmos up --backend <b> [--profile P] [--name N|"Free Text"] [--branch svc=ref ... [--live]] [--direct] [--no-air] [--keep-on-failure] [--build] [--source-images] [--poll | --no-poll] [--timeout S] [--skip-doctor] [--share]
       backends: ${backends}
       profiles: defined in cosmos.yaml (cosmos profiles); --backend defaults to local for local profiles
+      file watchers get host events by default; --poll makes them poll (the default on a runtime whose mounts raise no events, like Colima without mountInotify), --no-poll forces events
       name an instance after what you are working on: cosmos up --name "Letter Platform" (id becomes letter-platform; no --name picks a star)
       remote FEs call a per-instance Caddy edge (cosmos-<name>-edge, one localhost port per backend host) that
       forwards unchanged and answers CORS for the instance; --direct points the env at the real hosts instead
@@ -263,7 +265,7 @@ function help(): string {
       Use --password when sharing outside the team. Paths the project blocks on shares stay blocked unless --expose-admin. Not for --direct
   cosmos unshare <name...>           turn sharing off: stops its zrok, proxy and preview builder (down pauses a share, start resumes it)
   cosmos seed <name...>              re-run the project's seed on a running local instance
-  cosmos doctor                      check this machine: bun, docker, the project and its submodules, project checks, git access, ports (runs before the first up)
+  cosmos doctor                      check this machine: bun, the container runtime and its engine, the project and its submodules, project checks, git access, ports (runs before the first up)
   cosmos profiles                    profiles from cosmos.yaml, their services, and whether each can run now
   cosmos catalog                     every backend x profile, with availability and why
   cosmos build [--profile P] [--no-air] [--build]   build a profile's images one at a time

@@ -5,12 +5,22 @@ worktree per source-mounted service, a Caddy edge for remote backends, zrok shar
 
 ## Install
 
-Requires Bun 1.3 or newer and a docker engine: Docker Desktop, Colima or OrbStack (see Container runtimes).
+Requires Bun 1.3 or newer and one supported container runtime: Docker Desktop, Colima or OrbStack (see
+[Container runtimes](#container-runtimes)).
+
+In the project you want to run, put `cosmos.yaml` at the repo root and the adapter where its `adapter:` key points
+(see [Project contract](#project-contract)), then:
 
 ```
-bun add -d @rajvarsani/cosmos      # or a tarball: bun add -d ./rajvarsani-cosmos-0.1.0.tgz
-bunx cosmos --help
+bun add -d @rajvarsani/cosmos
+bunx cosmos doctor                                    # checks bun, the runtime, the project, git access, ports
+bunx cosmos up --backend <backend> --profile <profile> --name "My Work"
+bunx cosmos dashboard                                 # http://127.0.0.1:20000
 ```
+
+`bunx cosmos` runs from the dir whose `package.json` has the dependency; cosmos then finds `cosmos.yaml` in that
+dir or the nearest one above it (or `--project <dir>`). `up` runs `doctor` itself on the first run on a machine.
+`bunx cosmos --help` lists every command.
 
 ## Container runtimes
 
@@ -20,10 +30,12 @@ bunx cosmos --help
 | `colima` | `COSMOS_RUNTIME=colima` or `colima:<profile>` | `~/.colima/<profile>/docker.sock` | `host.docker.internal` (cosmos adds `extra_hosts: host-gateway`) | needs the compose and buildx CLI plugins; binds only under the VM's mounts (default `~`); polls for file changes unless `mountInotify: true` |
 | `orbstack` | `COSMOS_RUNTIME=orbstack` | `~/.orbstack/run/docker.sock` | `host.docker.internal` (built in) | |
 
-Order: `COSMOS_RUNTIME`, then `runtime:` in `cosmos.local.yaml` (same values), then the engine the current docker
-context points at, then the first runtime whose socket exists. Every docker and compose call gets the runtime's
-socket as `DOCKER_HOST`; cosmos never runs `docker context use`. `cosmos doctor` prints the pick and its checks;
-adapters read it as `ctx.runtime`.
+Order: `COSMOS_RUNTIME`, then `runtime:` in `COSMOS_HOME/cosmos.local.yaml` (same values, or `auto`), then the
+runtime that owns the engine the current docker context (or `DOCKER_HOST`) points at, then the first runtime whose
+socket exists. An engine no runtime owns (tcp, ssh, another socket) is used as is with Docker Desktop defaults. A
+named runtime that is not running gets its own socket anyway, so calls fail rather than reach another engine.
+Every docker and compose call carries the socket as `DOCKER_HOST`; cosmos never runs `docker context use`.
+`cosmos doctor` prints the pick and the runtime's own checks; adapters read it as `ctx.runtime`.
 
 ## Roots
 
@@ -42,7 +54,7 @@ instance is running.
 | --- | --- | --- | --- |
 | `registry.json`, `registry.lock` | machine | one claim per instance: projectId, project dir, slot, container prefix, owner pid, zrok names | additive only; writers keep unknown fields; a newer `version` is refused |
 | `.state/` | machine | docker build lock, dashboard pid and log, doctor marker | |
-| `cosmos.local.yaml` | machine | local overrides (env sources, share limits) | |
+| `cosmos.local.yaml` | machine | local overrides (env sources, share limits, `runtime`) | |
 | `projects/<projectId>/.state/state.json` | project | instance records, stamped `version` and `writtenBy` | refused when written by a cosmos outside this one's caret range |
 | `projects/<projectId>/.state/{shares,failures,ops,git}`, `measure.json` | project | share configs and logs, failure logs, locks, image memory | |
 | `projects/<projectId>/{instances,envs,vendor}` | project | per-instance worktrees and overrides, env copies, vendored worktrees | |

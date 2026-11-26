@@ -1,17 +1,19 @@
 ---
 name: cosmos
-description: Spin up, use and tear down isolated instances of a project's stack (the full local compose stack, or frontends against a deployed backend) on this machine with the cosmos CLI. Use when you need a running app to test, QA, screenshot or develop against, or when asked to start, check, log or remove a cosmos instance. Not for Docker itself or the cosmos dashboard process.
+description: Spin up, use and tear down isolated instances of a project's stack (the full local compose stack, or frontends against a deployed backend) on this machine with the cosmos CLI. Use when you need a running app to test, QA, screenshot or develop against, or when asked to start, check, log or remove a cosmos instance. Not for the container runtime (Docker Desktop, Colima, OrbStack) or the cosmos dashboard process.
 ---
 
 # cosmos
 
 `cosmos` runs isolated instances of the project whose `cosmos.yaml` it finds (walking up from the cwd, or
-`--project <dir>`). Every command takes `--json`; always pass it and parse the output. `cosmos --help` is the
-reference for commands and flags. This skill says when and how to use them safely. The project's own docs
-(next to its `cosmos.yaml`, usually `cosmos/README.md`) add its rules: which backends are live, which profile
+`--project <dir>`). It is a per-project dev dependency (`bun add -d @rajvarsani/cosmos`); run it as
+`bunx cosmos <cmd>` from that project (the dir with `cosmos.yaml`, or the one whose `package.json` has the
+dependency). Below, `cosmos <cmd>` means `bunx cosmos <cmd>`. Every command takes `--json`; always pass it
+and parse the output. `cosmos --help` is the reference for commands and flags. This skill says when and how to
+use them safely. The project's own docs (next to its `cosmos.yaml`, usually `cosmos/README.md`) add its rules: which backends are live, which profile
 to pick, where the seeded login is. Read them before the first `up`.
 
-`cosmos doctor --json` checks the machine.
+`cosmos doctor --json` checks the machine and shows which container runtime is active.
 
 ## When to use
 
@@ -23,8 +25,9 @@ suitable instance of yours already exists, reuse it.
 1. Only touch instances you created. Read `owner` in `cosmos ls --json` (`cwd`, `sessionId`, `via`). Yours
    means the owner matches your cwd and session. Anything else, or `via: "dashboard"`, belongs to someone
    else: never stop, start, down, rm, seed or reconfigure it. Reading `status`, `ports` and `logs` is fine.
-2. Never touch Docker settings or the dashboard process (`cosmos dashboard`). Do not run `docker` commands
-   against cosmos containers; use `cosmos logs`.
+2. Never change the container runtime's settings, start or stop it, or run `docker context use`. Never touch the
+   dashboard process (`cosmos dashboard`). Do not run `docker` commands against cosmos containers; use
+   `cosmos logs`.
 3. Never use `--all` on `down` or `rm`. Name your instances.
 4. Backends with `live: true` in `cosmos catalog --json` hold live customer data: read-only browsing at most,
    no form submits, no mutations, and prefer not to use them at all. Do not write to any deployed backend
@@ -47,7 +50,7 @@ short, pick a lighter profile or report it; do not stop other people's instances
 Name the instance after what you are working on, free text is fine:
 
 ```
-cosmos up --backend <backend> --profile <profile> --name "Letter Platform" --json
+bunx cosmos up --backend <backend> --profile <profile> --name "Letter Platform" --json
 ```
 
 - The id is the slug (`letter-platform`). Use that id in every later command.
@@ -56,8 +59,9 @@ cosmos up --backend <backend> --profile <profile> --name "Letter Platform" --jso
 - `up` blocks until ready and prints JSON with `name`, `url`, `urls` (per service), `ports`, `cors`,
   `warnings`, `memory`. Open `url` for the app, `urls.<svc>` for others.
 - Local profiles default to `--backend local`. Cold local starts take minutes; use `--timeout S` for a ceiling.
-- Each source-mounted service runs from the instance's own git worktree, `instances/<id>/src/<svc>` under
-  `COSMOS_HOME`, at the project's pinned commit. Edit and commit there. `cosmos src <id>` shows what each runs;
+- Each source-mounted service runs from the instance's own git worktree,
+  `COSMOS_HOME/projects/<projectId>/instances/<id>/src/<svc>`, at the project's pinned commit. Edit and commit
+  there. `cosmos src <id>` shows what each runs;
   `cosmos src <id> <svc>` lists branches; `cosmos src <id> <svc> <branch|tag|sha> --json` switches one and
   recreates only its containers; `--pinned` goes back to the project's commit.
 - Branch sets at create: `cosmos up ... --branch <svc>=feat/a --json` (one per service, new instances only).
@@ -74,7 +78,7 @@ Check any `warnings` and `cors` entries with `allowed: false` before trusting th
 ## Confirm ready
 
 ```
-cosmos status letter-platform --json
+bunx cosmos status letter-platform --json
 ```
 
 Each service has `running`, `health` and, for HTTP services, `http.ok`. Ready means every long-running service
@@ -90,7 +94,7 @@ When the project seeds a test user, its `cosmos.yaml` has a `login:` block, and 
 ## Logs and debugging
 
 ```
-cosmos logs letter-platform <svc> --tail 200 --json
+bunx cosmos logs letter-platform <svc> --tail 200 --json
 ```
 
 The service defaults to the instance's main frontend. Skip `-f` (it never returns). `cosmos seed <name>`
@@ -112,7 +116,7 @@ commands yourself and never stop a zrok process or delete a zrok name cosmos did
 When the work is finished, remove what you created:
 
 ```
-cosmos rm letter-platform --json
+bunx cosmos rm letter-platform --json
 ```
 
 `rm` drops volumes and frees the slot. `down` only stops it (keeps the slot and data). Leave nothing running
