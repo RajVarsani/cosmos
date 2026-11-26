@@ -3,7 +3,7 @@ import { BASE_PORT } from "./offsets";
 import * as ops from "./ops";
 import { CosmosError } from "./errors";
 import { dashboardMain } from "./dashboard/control";
-import { BACKENDS, LEGACY_PROFILES, loginConfig, manifest } from "./catalog";
+import { BACKENDS, findBackend, LEGACY_PROFILES, loginConfig, manifest } from "./catalog";
 import { doctor, doctorDone, printDoctor, rememberDoctor } from "./doctor";
 import { HOME, hasProject } from "./paths";
 import { migrateLegacy } from "./migrate";
@@ -67,12 +67,17 @@ async function cmdUp(v: Record<string, any>) {
     if (out.memory) console.log(`  memory ${out.memory.instanceMiB} MiB; VM available ${out.memory.vmBeforeMiB} -> ${out.memory.vmAfterMiB} MiB`);
     if (out.share) printShare(out.share);
     for (const w of out.warnings ?? []) console.log(`  warning: ${w}`);
-    printLogin("  ");
+    printLogin([out.backend], "  ");
   });
 }
 
-function printLogin(pad = "") {
-  const l = loginConfig();
+// the seeded login exists only on local stacks, so it shows only when one of these backends is local
+function localLogin(backends: string[]) {
+  return backends.some((b) => findBackend(b)?.kind === "local") ? loginConfig() : null;
+}
+
+function printLogin(backends: string[], pad = "") {
+  const l = localLogin(backends);
   if (l) console.log(`${pad}login ${l.email}  password: see cosmos.yaml login.password`);
 }
 
@@ -94,10 +99,10 @@ async function cmdDown(names: string[], v: Record<string, any>, remove: boolean)
 
 async function cmdLs() {
   const rows = await ops.list();
-  emit({ instances: rows, login: hasProject() ? loginConfig()?.email ?? null : null }, () => {
+  emit({ instances: rows, login: hasProject() ? localLogin(rows.map((r) => r.backend))?.email ?? null : null }, () => {
     if (!rows.length) return console.log("no instances");
     for (const r of rows) console.log(`${r.name.padEnd(16)} ${(r.label !== r.name ? r.label : "").padEnd(16)} slot ${String(r.slot).padEnd(3)} ${r.backend.padEnd(10)} ${ops.profileOf(r).padEnd(15)} ${ops.modeOf(r).padEnd(6)} ${r.status.padEnd(12)} ${r.url}${r.share ? `  shared ${r.share.url} (${r.shareState})` : ""}`);
-    printLogin();
+    printLogin(rows.map((r) => r.backend));
   });
 }
 
