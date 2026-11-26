@@ -238,10 +238,11 @@ function help(): string {
   return `cosmos: isolated instances of a project's stack on one machine
 Install once per user (bun add -g @rajvarsani/cosmos) and run cosmos <command> inside a project with a cosmos.yaml.
 
-  cosmos up --backend <b> [--profile P] [--name N|"Free Text"] [--branch svc=ref ... [--live]] [--direct] [--no-air] [--keep-on-failure] [--build] [--source-images] [--poll | --no-poll] [--timeout S] [--skip-doctor] [--share]
+  cosmos up [--backend <b>] [--profile P] [--name N|"Free Text"] [--branch svc=ref ... [--live]] [--direct] [--no-air] [--keep-on-failure] [--build] [--source-images] [--poll | --no-poll] [--timeout S] [--skip-doctor] [--share]
       backends: ${backends}
       profiles: defined in cosmos.yaml (cosmos profiles); --backend defaults to local for local profiles
       file watchers get host events by default; --poll makes them poll (the default on a runtime whose mounts raise no events, like Colima without mountInotify), --no-poll forces events
+      no --backend: cosmos.yaml defaults.backend (local for a local profile); no --profile: that backend's default profile
       name an instance after what you are working on: cosmos up --name "Letter Platform" (id becomes letter-platform; no --name picks a star)
       remote FEs call a per-instance Caddy edge (cosmos-<name>-edge, one localhost port per backend host) that
       forwards unchanged and answers CORS for the instance; --direct points the env at the real hosts instead

@@ -326,7 +326,8 @@ function resolveCombo(o: UpOpts): { backend: Backend; profile: Profile } {
     ? { id: canonicalProfile(o.profile), backendKind: "local", backends: null, services: st.services, title: "", about: "", default: false, line: 0 } : undefined;
   const named = o.profile ? findProfile(o.profile) ?? orphan : undefined;
   if (o.profile && !named) throw new CosmosError(`unknown profile "${o.profile}" (${CONFIG_FILE()} has: ${loadProfiles().profiles.map((p) => p.id).join(", ")})`);
-  const backendId = o.backend || (named?.backendKind === "local" ? "local" : "");
+  // no --backend: local for a local profile, else cosmos.yaml defaults.backend
+  const backendId = o.backend || (named?.backendKind === "local" ? "local" : manifest().defaults.backend ?? "");
   if (!backendId) throw new CosmosError(`--backend is required${named ? ` for remote profile ${named.id}` : ""} (one of: ${all})`);
   const backend = findBackend(backendId);
   if (!backend) throw new CosmosError(`unknown backend "${backendId}" (have: ${all})`);
@@ -482,8 +483,9 @@ export async function up(o: UpOpts, r: Reporter): Promise<UpResult> {
 }
 
 async function upCore(o: UpOpts, r: Reporter): Promise<UpResult> {
-  // a fresh machine has no vendored project yet, and profiles are validated against its compose file
+  // a fresh machine has no vendored project or env copies yet; profiles and backends are checked against both
   await ensureVendor(r.log);
+  await syncEnvs(r.log);
   const { backend, profile } = resolveCombo(o);
   if (o.sourceImages && backend.kind !== "local") throw new CosmosError("--source-images requires a local backend");
   checkName(o.name);
