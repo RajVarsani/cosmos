@@ -98,7 +98,7 @@ all must hold and `!x` negates.
 | `services.<svc>.air` | go: `{target, build, run}`: run air on the compose build's Dockerfile target, with these commands (`{{bin}}`) |
 | `services.<svc>.preview`, `.share` | share preview build `{out, viteTemp, command, mkOut, needMiB, dropEnv, mode}`; `share.about` / `share.notice` text per backend kind |
 | `services.<svc>.skipIfExists`, `.softFail`, `.restartDeadWorkersAfter` | init skipped on an existing instance when the file is in the instance dir; a non-zero init exit whose logs match is a warning; restart once if workers are dead after that init |
-| `backends`, `profiles`, `stages`, `legacyProfiles`, `retiredServices`, `login`, `images`, `extras` | as before; an extra runs from its service definition (`env`, `dependsOn`) |
+| `backends`, `profiles`, `stages`, `legacyProfiles`, `retiredServices`, `login`, `images`, `extras` | as before; `login` is the seeded user of local stacks, so `up` and `ls` show it only for local backends; an extra runs from its service definition (`env`, `dependsOn`) |
 | `seed` | `{service, requires, counts: {service, command, stdin}}`: `cosmos seed` re-runs that init service and prints `key=count` lines |
 | `share` | `reach` and `block` (`[{service, prefixes}]`) per backend kind |
 | `hooks.beforeDown` | a shell command run before `down`/`rm` with `COSMOS_INSTANCE`, `COSMOS_INSTANCE_DIR`, `COSMOS_BACKEND`, `COSMOS_BACKEND_KIND`, `COSMOS_REMOVE` |

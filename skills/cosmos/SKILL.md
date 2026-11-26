@@ -95,7 +95,7 @@ status says a service failed.
 ## Login
 
 When the project seeds a test user, its `cosmos.yaml` has a `login:` block, and `cosmos ls --json` returns
-`login` (the email). Read the password from the file when you need it; do not paste it into PRs, commits or chat.
+`login` (the email) when an instance runs a local backend; remote backends have no seeded user, so it is null there and `up` prints no login. Read the password from the file when you need it; do not paste it into PRs, commits or chat.
 
 ## Logs and debugging
 
