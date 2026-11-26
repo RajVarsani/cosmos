@@ -1,7 +1,11 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { migrationPending } from "./migrate";
 import { join } from "path";
 import { BASE_PORT, MAX_SLOT, SLOT_STRIDE } from "./offsets";
-import { STATE_DIR, projectDir } from "./paths";
+import { HOME, REGISTRY_FILE, REGISTRY_LOCK_DIR, STATE_DIR, projectDir, projectHomeOf, projectId } from "./paths";
+import { readRegistry, reapable, writeRegistry } from "./registry";
+import { withLock } from "./lock";
+import { STATE_VERSION, withState } from "./state";
 import { envSources, submoduleCount } from "./project";
 import { estimateMiB, loadProfiles, manifest, vendorDir } from "./catalog";
 import { VM_FLOOR_MIB } from "./images";
@@ -151,6 +155,44 @@ async function checkZrok(): Promise<Check[]> {
   ];
 }
 
+// Syncs this project's claims, then reaps other projects' claims that are provably dead (see registry.reapable).
+async function checkRegistry(project: string | null): Promise<Check> {
+  try {
+    if (project) {
+      if (migrationPending()) return bad("registry", `a cosmos 0.1 layout in ${HOME} is not migrated yet`, "run any cosmos command in this project; it migrates on first run");
+      await withState(() => {});
+    }
+    const ps = await run(["docker", "ps", "-a", "--format", "{{.Names}}"], { quiet: true, timeoutMs: 15_000 }).catch(() => null);
+    const names = ps?.code === 0 ? ps.stdout.split("\n").filter(Boolean) : null;
+    const own = project ? projectId() : "";
+    const reaped = await withLock(REGISTRY_LOCK_DIR, { staleMs: 10 * 60_000, waitMs: 120_000 }, () => {
+      const reg = readRegistry();
+      const dead = reapable(reg, own, {
+        projectGone: (c) => !!c.projectDir && !existsSync(join(c.projectDir, "cosmos.yaml")),
+        containersGone: (c) => names !== null && !names.some((n) => n.startsWith(`${c.prefix}-`)),
+        stateLists: (c) => {
+          try {
+            const st = JSON.parse(readFileSync(join(projectHomeOf(c.projectId), ".state", "state.json"), "utf8"));
+            return st.version > STATE_VERSION ? null : !!st.instances?.[c.instance];
+          } catch {
+            return null;
+          }
+        },
+      });
+      if (dead.length) {
+        for (const d of dead) delete reg.claims[d.key];
+        writeRegistry(reg);
+      }
+      return dead;
+    });
+    const claims = Object.values(readRegistry().claims);
+    const others = new Set(claims.filter((c) => c.projectId !== own).map((c) => c.projectId));
+    return ok("registry", `${claims.length} claim(s)${others.size ? `, ${others.size} other project(s): ${[...others].join(", ")}` : ""}${reaped.length ? `; reaped ${reaped.map((d) => `${d.claim.projectId}/${d.claim.instance} (${d.why})`).join(", ")}` : ""}`);
+  } catch (e) {
+    return bad("registry", (e as Error).message, `check ${REGISTRY_FILE}`);
+  }
+}
+
 export async function doctor(): Promise<{ checks: Check[]; ok: boolean }> {
   const bun = checkBun();
   const [docker, p] = await Promise.all([checkDocker(), checkProject()]);
@@ -159,8 +201,8 @@ export async function doctor(): Promise<{ checks: Check[]; ok: boolean }> {
     if (p.path) sources = envSources();
   } catch {}
   const custom = p.path ? A().doctor?.(ctx(), { sources }).catch((e) => [bad("project checks", (e as Error).message, "see the project's adapter")]) : undefined;
-  const [vendor, remotes, ports, zrok, extra] = await Promise.all([checkVendor(p.path), checkRemotes(p.path), checkPorts(), checkZrok(), custom ?? Promise.resolve([] as Check[])]);
-  const checks = [bun, ...docker, ...p.checks, vendor, ...extra, remotes, ports, ...zrok];
+  const [vendor, remotes, ports, zrok, extra, registry] = await Promise.all([checkVendor(p.path), checkRemotes(p.path), checkPorts(), checkZrok(), custom ?? Promise.resolve([] as Check[]), checkRegistry(p.path)]);
+  const checks = [bun, ...docker, ...p.checks, vendor, ...extra, registry, remotes, ports, ...zrok];
   return { checks, ok: checks.every((c) => c.ok || c.optional) };
 }
 

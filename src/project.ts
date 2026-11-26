@@ -1,20 +1,28 @@
-// The project checkout (the dir holding cosmos.yaml) and machine-local overrides in HOME/cosmos.local.yaml.
+// The project checkout (the dir holding cosmos.yaml) and local overrides (cosmos.local.yaml).
 import { existsSync, readFileSync, readdirSync } from "fs";
 import { join, resolve } from "path";
 import { manifest } from "./catalog";
-import { LOCAL_FILE, expandHome, projectDir } from "./paths";
+import { LOCAL_FILE, expandHome, hasProject, projectDir, projectLocalFile } from "./paths";
 
 export class LocalConfigError extends Error {}
 
-// cosmos.local.yaml: machine-local overrides: envSources, share limits
-export function localConfig(): { envSources?: Record<string, string>; share?: { maxShares?: number; maxNames?: number } } {
-  if (!existsSync(LOCAL_FILE)) return {};
+type LocalConfig = { envSources?: Record<string, string>; share?: { maxShares?: number; maxNames?: number } };
+
+function readLocal(file: string): LocalConfig {
+  if (!existsSync(file)) return {};
   try {
-    const d = Bun.YAML.parse(readFileSync(LOCAL_FILE, "utf8")) as any;
+    const d = Bun.YAML.parse(readFileSync(file, "utf8")) as any;
     return d && typeof d === "object" ? d : {};
   } catch (e) {
-    throw new LocalConfigError(`${LOCAL_FILE}: ${(e as Error).message}`);
+    throw new LocalConfigError(`${file}: ${(e as Error).message}`);
   }
+}
+
+// cosmos.local.yaml overrides: HOME/cosmos.local.yaml for the machine, projects/<projectId>/cosmos.local.yaml on top
+export function localConfig(): LocalConfig {
+  const machine = readLocal(LOCAL_FILE);
+  const project = hasProject() ? readLocal(projectLocalFile()) : {};
+  return { ...machine, ...project, envSources: { ...machine.envSources, ...project.envSources }, share: { ...machine.share, ...project.share } };
 }
 
 // <sourcesDir>/<repo> checkouts that are initialised

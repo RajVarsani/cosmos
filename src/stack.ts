@@ -229,7 +229,7 @@ export function generateStack(p: StackPlan): StackOut {
   const sd = m.sourcesDir;
 
   for (const [svc, g] of Object.entries(services)) {
-    lines.push(`  ${svc}:`, `    container_name: ${j(containerName(p.name, svc))}`, `    labels: ${j({ "cosmos.instance": p.name, "cosmos.service": svc })}`);
+    lines.push(`  ${svc}:`, `    container_name: ${j(containerName(p.name, svc))}`, `    labels: ${j({ "cosmos.instance": p.name, "cosmos.service": svc, "cosmos.project": m.projectId })}`);
     if (!p.services.includes(svc)) {
       lines.push(`    profiles: ["cosmos-disabled"]`, `    ports: !reset []`, `    env_file: !reset []`);
       continue;
@@ -335,7 +335,7 @@ function generateEdge(p: StackPlan, lines: string[], origins: string[]) {
   lines.push(
     `  edge:`,
     `    container_name: ${j(containerName(p.name, "edge"))}`,
-    `    labels: ${j({ "cosmos.instance": p.name, "cosmos.service": "edge" })}`,
+    `    labels: ${j({ "cosmos.instance": p.name, "cosmos.service": "edge", "cosmos.project": manifest().projectId })}`,
     `    image: ${j(EDGE_IMAGE)}`,
     `    restart: unless-stopped`,
     `    command: ${j(["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"])}`,

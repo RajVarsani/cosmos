@@ -1,7 +1,7 @@
 // Image builds: one at a time (build lock), memory-checked before and watched during, measured after.
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "fs";
 import { join } from "path";
-import { BUILD_LOCK_DIR, STATE_DIR } from "./paths";
+import { BUILD_LOCK_DIR, projectStateDir } from "./paths";
 import { withLock } from "./lock";
 import { imageExists, vmAvailableMiB, watchVm } from "./docker";
 import { run } from "./sh";
@@ -20,7 +20,7 @@ export class MemoryError extends Error {
 
 // ---------- measurements ----------
 
-const MEASURE_FILE = join(STATE_DIR, "measure.json");
+const measureFile = () => join(projectStateDir(), "measure.json");
 export type Measure = {
   builds: Record<string, { key: string; ms: number; sizeMB: number | null; vmBeforeMiB: number; vmMinMiB: number; at: string }>;
   // peakMiB: docker stats right after a cold start (vite/pnpm peaks included); steadyMiB is the old name for the same reading
@@ -29,19 +29,19 @@ export type Measure = {
 
 export function readMeasure(): Measure {
   try {
-    return JSON.parse(readFileSync(MEASURE_FILE, "utf8"));
+    return JSON.parse(readFileSync(measureFile(), "utf8"));
   } catch {
     return { builds: {}, profiles: {} };
   }
 }
 
 export function recordMeasure(fn: (m: Measure) => void) {
-  mkdirSync(STATE_DIR, { recursive: true });
+  mkdirSync(projectStateDir(), { recursive: true });
   const m = readMeasure();
   fn(m);
-  const tmp = `${MEASURE_FILE}.${process.pid}.tmp`;
+  const tmp = `${measureFile()}.${process.pid}.tmp`;
   writeFileSync(tmp, JSON.stringify(m, null, 2) + "\n");
-  renameSync(tmp, MEASURE_FILE);
+  renameSync(tmp, measureFile());
 }
 
 export async function imageSizeMB(tag: string): Promise<number | null> {

@@ -2,6 +2,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
 import { projectStateDir } from "./paths";
+import { dropLegacyLink } from "./migrate";
 import { readState, withState, slotCandidates, reservedNames, ownerInfo, type CorsCheck, type Instance, type State } from "./state";
 import { BASE_PORT, EDGE_OFFSETS, SLOT_STRIDE, hostPort, OFFSETS } from "./offsets";
 import { busyPorts, portOwner } from "./ports";
@@ -908,6 +909,7 @@ export async function down(names: string[], o: { all?: boolean; remove: boolean;
         await untagImages(Object.entries(i.images ?? {}).filter(([k]) => !k.endsWith("@shared")).map(([, v]) => v));
         await removeWorktrees(i.name, r.log, { force: o.force });
         rmSync(instanceDir(i.name), { recursive: true, force: true });
+        dropLegacyLink(i.name);
         await withState((s) => void delete s.instances[i.name]);
       }
       done.push(i.name);

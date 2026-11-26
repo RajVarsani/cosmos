@@ -1,9 +1,9 @@
 import { mkdirSync, readFileSync, writeFileSync, renameSync, existsSync } from "fs";
 import { join } from "path";
 import { withLock } from "./lock";
-import { REGISTRY_LOCK_DIR, STATE_DIR, projectId, projectStateDir, stateFile } from "./paths";
+import { COSMOS_VERSION, LEGACY, REGISTRY_LOCK_DIR, projectDir, projectId, projectStateDir, stateFile } from "./paths";
 import { CosmosError } from "./errors";
-import { checkVersion, foreignClaims, readRegistry, reconcile, writeRegistry, type Claim } from "./registry";
+import { checkVersion, foreignClaims, prefixOf, readRegistry, reconcile, writeRegistry, type Claim } from "./registry";
 import { MAX_SLOT } from "./offsets";
 import type { EdgeRoute } from "./edge";
 import type { Share } from "./share";
@@ -51,52 +51,65 @@ export type Instance = {
 export type CorsCheck = { fe: string; origin: string; target: string; allowed: boolean; acao: string | null; credentials: boolean; status: number | null; error?: string };
 
 // pendingRelease: zrok names rm could not release; the next share retries them
+// writtenBy: the cosmos version that last wrote the file; an older cosmos outside its caret range refuses it
 // machine: other projects' slot and name claims from the registry (never persisted); slots and names they hold are not free
-export type State = { version: 1; instances: Record<string, Instance>; pendingRelease?: string[]; machine?: Claim[] };
-const STATE_VERSION = 1;
+export type State = { version: 1; writtenBy?: string; instances: Record<string, Instance>; pendingRelease?: string[]; machine?: Claim[] };
+export const STATE_VERSION = 1;
 
 const LOCK_OPTS = { staleMs: 10 * 60_000, waitMs: 120_000 };
 
 // Holds the machine lock for the whole callback (slot and name claims are arbitrated across projects); state mutations
 // are persisted atomically to the project's state file, and this project's claims are synced to the registry on return.
 export async function withState<T>(fn: (s: State) => Promise<T> | T): Promise<T> {
-  mkdirSync(STATE_DIR, { recursive: true });
-  mkdirSync(projectStateDir(), { recursive: true });
-  return withLock(REGISTRY_LOCK_DIR, LOCK_OPTS, async () => {
-    const s = readState();
-    const out = await fn(s);
-    const file = stateFile();
-    const tmp = `${file}.${process.pid}.${crypto.randomUUID()}.tmp`;
-    writeFileSync(tmp, JSON.stringify(s, (k, v) => (k === "machine" ? undefined : k === "share" && v && typeof v === "object" ? { ...v, password: undefined } : v), 2) + "\n");
-    renameSync(tmp, file);
-    const id = projectId();
-    const next = reconcile(readRegistry(), id, Object.values(s.instances), (p) => p === id || existsSync(join(STATE_DIR, "..", "projects", p, ".state", "state.json")));
-    if (next) writeRegistry(next);
-    return out;
-  });
+  return withLock(REGISTRY_LOCK_DIR, LOCK_OPTS, () => mutateState(fn));
 }
 
-// 0.1 kept one state.json for every project in HOME/.state. 0.2 keeps one per project; refuse rather than orphan instances.
-function legacyCheck(): void {
-  const legacy = join(STATE_DIR, "state.json");
-  if (!existsSync(legacy)) return;
-  let n = 0;
-  try {
-    n = Object.keys(JSON.parse(readFileSync(legacy, "utf8")).instances ?? {}).length;
-  } catch {}
-  if (n) throw new CosmosError(`${legacy} holds ${n} instance(s) from cosmos 0.1. cosmos 0.2 keeps state per project (${projectStateDir()}). Remove those instances with cosmos 0.1 (cosmos rm <name>), then delete ${legacy}.`);
+// withState for a caller that already holds the registry lock
+export async function mutateState<T>(fn: (s: State) => Promise<T> | T): Promise<T> {
+  const s = readState();
+  const out = await fn(s);
+  writeState(s);
+  const next = reconcile(readRegistry(), { id: projectId(), dir: projectDir() }, Object.values(s.instances));
+  if (next) writeRegistry(next);
+  return out;
 }
+
+function writeState(s: State): void {
+  const file = stateFile();
+  mkdirSync(projectStateDir(), { recursive: true });
+  const tmp = `${file}.${process.pid}.${crypto.randomUUID()}.tmp`;
+  s.writtenBy = COSMOS_VERSION;
+  writeFileSync(tmp, JSON.stringify(s, (k, v) => (k === "machine" ? undefined : k === "share" && v && typeof v === "object" ? { ...v, password: undefined } : v), 2) + "\n");
+  renameSync(tmp, file);
+}
+
+// a state file written by a newer cosmos than this one's caret range (0.3.x for 0.2.x) is refused, not guessed at
+export function checkWriter(file: string, writtenBy: unknown, ours = COSMOS_VERSION): void {
+  if (typeof writtenBy !== "string" || !Bun.semver.satisfies(writtenBy, "*")) return;
+  if (Bun.semver.order(writtenBy, ours) > 0 && !Bun.semver.satisfies(writtenBy, `^${ours}`))
+    throw new CosmosError(`${file} was written by cosmos ${writtenBy}; this is ${ours}. Upgrade it: bun add -d @rajvarsani/cosmos@^${writtenBy}`);
+}
+
+// 0.1 instances no project has migrated yet (another project's): their slots and names stay taken
+function legacyClaims(): Claim[] {
+  if (!existsSync(LEGACY.stateFile)) return [];
+  try {
+    const l = JSON.parse(readFileSync(LEGACY.stateFile, "utf8"));
+    return Object.values<any>(l.instances ?? {}).map((i) => ({ projectId: "(cosmos 0.1)", projectDir: "", instance: i.name, slot: i.slot, prefix: prefixOf(i.name), pid: i.owner?.pid ?? 0, at: i.createdAt ?? "" }));
+  } catch {
+    return [];
+  }
+}
+
+const withMachine = (s: State): State => Object.defineProperty(s, "machine", { value: [...foreignClaims(readRegistry(), projectId()), ...legacyClaims()], enumerable: false, writable: true, configurable: true });
 
 export function readState(): State {
   const file = stateFile();
-  const machine = foreignClaims(readRegistry(), projectId());
-  if (!existsSync(file)) {
-    legacyCheck();
-    return Object.defineProperty({ version: 1, instances: {} } as State, "machine", { value: machine, enumerable: false, writable: true, configurable: true });
-  }
+  if (!existsSync(file)) return withMachine({ version: 1, instances: {} });
   const s: State = JSON.parse(readFileSync(file, "utf8"));
   checkVersion("state", file, s.version, STATE_VERSION);
-  Object.defineProperty(s, "machine", { value: machine, enumerable: false, writable: true, configurable: true });
+  checkWriter(file, s.writtenBy);
+  withMachine(s);
   // records may carry retired profile names; the next write persists the new ones
   for (const i of Object.values(s.instances)) {
     if (i.profile) i.profile = canonicalProfile(i.profile);

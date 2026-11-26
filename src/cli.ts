@@ -7,6 +7,7 @@ import { BACKENDS, LEGACY_PROFILES, loginConfig, manifest } from "./catalog";
 import { doctor, doctorDone, printDoctor, rememberDoctor } from "./doctor";
 import { loadAdapter } from "./adapter";
 import { HOME, hasProject } from "./paths";
+import { migrateLegacy } from "./migrate";
 
 let JSON_OUT = false;
 const log = (m: string) => console.error(`[cosmos] ${m}`);
@@ -275,7 +276,7 @@ function help(): string {
   cosmos dashboard [--port N] [--detach | --stop | --status]   web console on http://127.0.0.1:<port> (default ${BASE_PORT}, or COSMOS_DASHBOARD_PORT)
 
 The project is the nearest dir upward with a cosmos.yaml, or --project <dir> (COSMOS_PROJECT).
-Project state (instances, env copies, vendored worktrees) lives in ${HOME}/projects/<projectId>; slot and name claims live in ${HOME}/.state/registry.json. COSMOS_HOME moves both.
+Project state (instances, env copies, vendored worktrees) lives in ${HOME}/projects/<projectId>; slot and name claims of every project live in ${HOME}/registry.json. COSMOS_HOME moves both. A 0.1 layout is migrated on first run.
 All commands take --json. Host port = ${BASE_PORT} + 100*slot + offset (offsets in cosmos.yaml); slot 0 is never assigned.`;
 }
 
@@ -325,6 +326,7 @@ async function main() {
   if (!needsNoProject || hasProject()) await loadAdapter().catch((e) => {
     if (!needsNoProject) throw e;
   });
+  if (!needsNoProject) await migrateLegacy(log);
   const legacy = values.profile && hasProject() && LEGACY_PROFILES()[values.profile];
   if (legacy) {
     log(`note: profile "${values.profile}" is now "${legacy}"; the old name will stop working`);
