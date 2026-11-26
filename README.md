@@ -3,8 +3,6 @@
 Isolated instances of a project's docker compose stack on one machine: one slot of ports per instance, a git
 worktree per source-mounted service, a Caddy edge for remote backends, zrok shares and a web dashboard.
 
-Licensing is pending: this package carries no license yet and is not for redistribution.
-
 ## Install
 
 Requires Bun 1.3 or newer and Docker.
@@ -47,3 +45,7 @@ bun run build:dashboard     # rebuilds src/dashboard/app/dist
 bun test ./test
 bash scripts/leak-check.sh  # COSMOS_DENYLIST points at the term list
 ```
+
+## License
+
+MIT. See [LICENSE](LICENSE).
