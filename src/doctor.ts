@@ -15,6 +15,7 @@ import { GIT_ENV, run } from "./sh";
 import { zrokInfo } from "./share";
 import { A, ctx } from "./adapter";
 import type { Check } from "./api";
+import { runtime } from "./runtime";
 
 export type { Check };
 
@@ -42,24 +43,32 @@ function checkBun(): Check {
 }
 
 async function checkDocker(): Promise<Check[]> {
+  let rt: ReturnType<typeof runtime>;
+  try {
+    rt = runtime();
+  } catch (e) {
+    return [bad("runtime", (e as Error).message, "fix runtime: in cosmos.local.yaml or COSMOS_RUNTIME")];
+  }
+  const head = ok("runtime", `${rt.label}${rt.profile ? ` (profile ${rt.profile})` : ""} via ${rt.source}, ${rt.dockerHost ?? "the docker CLI default"}`);
   const r = await run(["docker", "info", "--format", "{{.MemTotal}} {{.NCPU}}"], { quiet: true, timeoutMs: 15_000 }).catch(() => ({ code: -1, stdout: "", stderr: "docker not installed" }));
   if (r.code !== 0) {
-    return [bad("docker", r.code === 124 ? "the daemon did not answer in 15s" : r.stderr.trim().split("\n").pop() || "not running", "start Docker Desktop (or your docker engine), wait until it is ready, then rerun")];
+    return [head, bad("docker", r.code === 124 ? "the daemon did not answer in 15s" : r.stderr.trim().split("\n").pop() || "not running", rt.startHint), ...(await rt.doctor().catch(() => []))];
   }
   const [bytes, cpus] = r.stdout.trim().split(/\s+/).map(Number);
   const totalMiB = Math.round(bytes / 1048576);
-  const out: Check[] = [ok("docker", "running")];
+  const out: Check[] = [head, ok("docker", "running")];
   let local: { id: string; est: number }[] = [];
   try {
     local = loadProfiles().profiles.filter((p) => p.backendKind === "local").map((p) => ({ id: p.id, est: estimateMiB(p.services) }));
   } catch {}
   const smallest = local.length ? Math.min(...local.map((p) => p.est)) : 0;
   const fits = local.filter((p) => totalMiB - p.est >= VM_FLOOR_MIB);
-  const memFix = "Docker Desktop > Settings > Resources > Memory: raise it (16 GiB runs every profile)";
+  const memFix = rt.memoryFix;
   if (totalMiB < smallest + VM_FLOOR_MIB) out.push(bad("docker memory", `${gib(totalMiB)}; the smallest local profile needs about ${gib(smallest + VM_FLOOR_MIB)}`, memFix));
   else if (totalMiB < VM_FLOOR_MIB * 2) out.push(bad("docker memory", `${gib(totalMiB)} is too small to build images`, memFix));
   else out.push(ok("docker memory", `${gib(totalMiB)}${local.length ? `; fits ${fits.length} of ${local.length} local profiles${fits.length < local.length ? ` (not ${local.filter((p) => !fits.includes(p)).map((p) => p.id).join(", ")})` : ""}` : ""}`));
-  out.push(cpus >= MIN_CPUS ? ok("docker cpus", String(cpus)) : bad("docker cpus", `${cpus}, builds and the stack want ${MIN_CPUS}+`, "Docker Desktop > Settings > Resources > CPUs"));
+  out.push(cpus >= MIN_CPUS ? ok("docker cpus", String(cpus)) : bad("docker cpus", `${cpus}, builds and the stack want ${MIN_CPUS}+`, rt.cpuFix));
+  out.push(...(await rt.doctor().catch((e) => [bad(`${rt.id} checks`, (e as Error).message, rt.startHint)])));
   return out;
 }
 

@@ -2,6 +2,8 @@
 // arrives through AdapterContext, so there is never a second copy of core state.
 import type { Backend, LoginConfig, Manifest, Profile, SvcDef } from "./catalog";
 import type { CosmosContainer, CState } from "./docker";
+import type { RuntimeInfo } from "./runtime/types";
+export type { RuntimeId, RuntimeInfo } from "./runtime/types";
 import type { Reporter } from "./errors";
 import type { RunOpts, RunResult } from "./sh";
 import type { CorsCheck, Instance } from "./state";
@@ -149,6 +151,8 @@ export type AdapterContext = {
   waitHttp: (url: string, timeoutMs: number, ok?: (status: number) => boolean) => Promise<number>;
   workers: (inst: Instance) => Promise<Record<string, { name: string; alive: boolean; count: number }[] | null>>;
   error: (message: string, detail?: Record<string, unknown>) => Error;
+  // the container runtime every docker call goes to; hostAlias is how a container reaches the host
+  runtime: RuntimeInfo;
 };
 
 export interface Adapter {

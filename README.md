@@ -5,12 +5,25 @@ worktree per source-mounted service, a Caddy edge for remote backends, zrok shar
 
 ## Install
 
-Requires Bun 1.3 or newer and Docker.
+Requires Bun 1.3 or newer and a docker engine: Docker Desktop, Colima or OrbStack (see Container runtimes).
 
 ```
 bun add -d @rajvarsani/cosmos      # or a tarball: bun add -d ./rajvarsani-cosmos-0.1.0.tgz
 bunx cosmos --help
 ```
+
+## Container runtimes
+
+| Runtime | Select | Engine socket | Host alias in containers | Notes |
+| --- | --- | --- | --- | --- |
+| `docker-desktop` | `COSMOS_RUNTIME=docker-desktop` | `~/.docker/run/docker.sock` | `host.docker.internal` (built in) | memory and CPUs in Settings > Resources |
+| `colima` | `COSMOS_RUNTIME=colima` or `colima:<profile>` | `~/.colima/<profile>/docker.sock` | `host.docker.internal` (cosmos adds `extra_hosts: host-gateway`) | needs the compose and buildx CLI plugins; binds only under the VM's mounts (default `~`); polls for file changes unless `mountInotify: true` |
+| `orbstack` | `COSMOS_RUNTIME=orbstack` | `~/.orbstack/run/docker.sock` | `host.docker.internal` (built in) | |
+
+Order: `COSMOS_RUNTIME`, then `runtime:` in `cosmos.local.yaml` (same values), then the engine the current docker
+context points at, then the first runtime whose socket exists. Every docker and compose call gets the runtime's
+socket as `DOCKER_HOST`; cosmos never runs `docker context use`. `cosmos doctor` prints the pick and its checks;
+adapters read it as `ctx.runtime`.
 
 ## Roots
 

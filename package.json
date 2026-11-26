@@ -16,6 +16,8 @@
   "files": [
     "bin/",
     "src/*.ts",
+    "src/runtime/*.ts",
+    "src/runtime/providers/*.ts",
     "src/dashboard/*.ts",
     "src/dashboard/app/dist/",
     "docker/go-air.Dockerfile",

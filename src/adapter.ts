@@ -9,6 +9,7 @@ import { containerName, instanceDir } from "./generate";
 import { hostPort } from "./offsets";
 import { HOME, PKG_ROOT, envsDir, projectDir, projectStateDir } from "./paths";
 import { waitHttp, workers } from "./probe";
+import { runtimeInfo } from "./runtime";
 import { GIT_ENV, run } from "./sh";
 import { composeBuildSpec, composeDoc, extraBuildSpec, gitHead, goAirSpec, h12, rewriteLocalPorts, writeEnvFile } from "./stack";
 import { ensureServiceSources, pinnedSha } from "./vendor";
@@ -54,6 +55,7 @@ export function ctx(): AdapterContext {
     specs: { compose: composeBuildSpec, goAir: goAirSpec, extra: extraBuildSpec },
     hash: h12, gitHead, pinnedSha, ensureServiceSources, waitHttp, workers,
     error: (message, detail) => new CosmosError(message, detail),
+    runtime: runtimeInfo(),
   };
   return context;
 }

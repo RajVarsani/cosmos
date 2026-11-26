@@ -24,6 +24,7 @@ import type { BackendStatus } from "./api";
 import { A, ctx } from "./adapter";
 import { CosmosError, type Reporter } from "./errors";
 import { waitHttp, workers, WORKERS } from "./probe";
+import { dockerEnv, runtime } from "./runtime";
 
 export { CosmosError, WORKERS, mainFe, workers, type Reporter };
 
@@ -490,8 +491,8 @@ async function upCore(o: UpOpts, r: Reporter): Promise<UpResult> {
   checkName(o.name);
   checkBranches(o.branches, profile, o.live);
   const branches = o.branches ?? {};
-  // Docker Desktop VirtioFS delivers file events; polling is opt-in (--poll) for engines that do not
-  const pollOpt = o.poll;
+  // polling is opt-in (--poll), and the default on a runtime whose mounts raise no file events
+  const pollOpt = o.poll ?? (runtime().watch === "poll" ? true : undefined);
   const t0 = Date.now();
   const timings: Record<string, number> = {};
   const services = profile.services;
@@ -1221,7 +1222,7 @@ export async function logs(ref: string, svc: string, o: { tail?: number; follow?
 export function spawnLogs(ref: string, svc: string, tail: number) {
   const name = getInstance(ref).name;
   const args = logArgs(name, svc, { tail, follow: true, timestamps: true });
-  return Bun.spawn([...composeArgs(name), ...args], { stdout: "pipe", stderr: "pipe" });
+  return Bun.spawn([...composeArgs(name), ...args], { stdout: "pipe", stderr: "pipe", env: dockerEnv() });
 }
 
 export async function gitInfo(dir: string): Promise<{ branch: string | null; sha: string | null; dirty: number | null }> {

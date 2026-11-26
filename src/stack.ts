@@ -11,6 +11,7 @@ import { EDGE_IMAGE, caddyfile, rewriteToEdge, type EdgeRoute } from "./edge";
 import { containerName, instanceDir, overridePath, projectName, slug } from "./generate";
 import { PKG_ROOT } from "./paths";
 import { A, ctx } from "./adapter";
+import { runtime } from "./runtime";
 
 export type { BuildSpec, StackPlan };
 
@@ -287,6 +288,9 @@ export function generateStack(p: StackPlan): StackOut {
       Object.assign(draft, { workingDir: "/source", entrypoint: [], command: ["air", "-c", "/cosmos/air.toml"] });
     }
 
+    // a runtime that does not resolve the host alias itself gets it as extra_hosts (Docker Desktop: none, output unchanged)
+    const xh = runtime().extraHosts;
+    if (xh.length) draft.lines.push(`    extra_hosts: ${j(xh)}`);
     a.composeService?.(ctx(), draft, gen);
     if (local && d.kind !== "fe") Object.assign(draft.env, localEnvOverride(dir, svc));
     emitService(lines, draft);

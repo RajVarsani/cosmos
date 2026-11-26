@@ -5,6 +5,7 @@ import { BUILD_LOCK_DIR, projectStateDir } from "./paths";
 import { withLock } from "./lock";
 import { imageExists, vmAvailableMiB, watchVm } from "./docker";
 import { run } from "./sh";
+import { dockerEnv } from "./runtime";
 import type { BuildSpec } from "./stack";
 
 // Docker VM available memory (MemAvailable) that cosmos never goes below.
@@ -74,7 +75,7 @@ export async function ensureImage(spec: BuildSpec, r: Rep, force = false): Promi
     const t0 = Date.now();
     let breach: number | null = null;
     let vmMin = probe.mib;
-    const proc = Bun.spawn(args, { stdout: r.inherit ? "inherit" : "pipe", stderr: r.inherit ? "inherit" : "pipe" });
+    const proc = Bun.spawn(args, { stdout: r.inherit ? "inherit" : "pipe", stderr: r.inherit ? "inherit" : "pipe", env: dockerEnv() });
     const stop = watchVm((mib) => {
       vmMin = Math.min(vmMin, mib);
       if (mib < VM_FLOOR_MIB && breach === null) {

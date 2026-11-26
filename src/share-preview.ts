@@ -5,6 +5,7 @@ import { run } from "./sh";
 import { vmAvailableMiB } from "./docker";
 import { VM_FLOOR_MIB } from "./images";
 import type { ProxyConfig, ShareStatus } from "./share-proxy";
+import { dockerEnv } from "./runtime";
 
 export type PreviewConfig = NonNullable<ProxyConfig["preview"]>;
 export type PreviewStatus = NonNullable<ShareStatus["preview"]>;
@@ -127,7 +128,7 @@ export function startPreview(p: PreviewConfig, logFile: string, onChange: () => 
     for (const n of readdirSync(out)) rmSync(join(out, n), { recursive: true, force: true });
     const fd = openSync(logFile, "w", 0o600);
     const started = Date.now();
-    const proc = Bun.spawn(["docker", "start", "-a", p.container], { stdin: "ignore", stdout: fd, stderr: fd });
+    const proc = Bun.spawn(["docker", "start", "-a", p.container], { stdin: "ignore", stdout: fd, stderr: fd, env: dockerEnv() });
     closeSync(fd);
     building = proc;
     set({ state: "building", pending: false });

@@ -277,6 +277,7 @@ function help(): string {
 
 The project is the nearest dir upward with a cosmos.yaml, or --project <dir> (COSMOS_PROJECT).
 Project state (instances, env copies, vendored worktrees) lives in ${HOME}/projects/<projectId>; slot and name claims of every project live in ${HOME}/registry.json. COSMOS_HOME moves both. A 0.1 layout is migrated on first run.
+The container runtime (docker-desktop, colima, orbstack) is COSMOS_RUNTIME, else runtime: in ${HOME}/cosmos.local.yaml, else whatever the docker context points at; colima:<profile> picks a colima profile. cosmos never switches the docker context.
 All commands take --json. Host port = ${BASE_PORT} + 100*slot + offset (offsets in cosmos.yaml); slot 0 is never assigned.`;
 }
 

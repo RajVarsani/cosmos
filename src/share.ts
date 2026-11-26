@@ -12,6 +12,7 @@ import { A, ctx } from "./adapter";
 import type { PreviewRecipe } from "./api";
 import type { Instance } from "./state";
 import type { ProxyConfig, ShareStatus } from "./share-proxy";
+import { runtime } from "./runtime";
 
 export type Share = {
   url: string;
@@ -244,8 +245,8 @@ export async function createPreview(inst: Instance, fe: string, mode: "productio
   const wd = c.Config.WorkingDir || "/app";
   const envs = join(dir, "envs");
   mkdirSync(envs, { recursive: true, mode: 0o700 });
-  // Docker Desktop reports bind sources as /host_mnt/<host path>; the host process and `docker create` both want the host path
-  const hostPath = (p: string) => p.replace(/^\/host_mnt(?=\/)/, "");
+  // the runtime's bind source (Docker Desktop: /host_mnt/<host path>) -> the host path the host process and `docker create` want
+  const hostPath = runtime().hostPath;
   const taken = new Set([...c.Mounts.map((m) => m.Destination), spec.out]);
   const mounts = [`type=tmpfs,target=${wd},tmpfs-size=67108864`];
   for (const m of c.Mounts) {

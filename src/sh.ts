@@ -1,3 +1,5 @@
+import { dockerEnv } from "./runtime";
+
 export type RunResult = { code: number; stdout: string; stderr: string };
 
 export type RunOpts = {
@@ -26,9 +28,11 @@ async function drain(stream: ReadableStream<Uint8Array>, name: "stdout" | "stder
 }
 
 export async function run(cmd: string[], opts: RunOpts = {}): Promise<RunResult> {
+  // every docker call (core's and the adapter's ctx.run) goes to the active runtime's engine
+  const base = cmd[0] === "docker" ? dockerEnv() : process.env;
   const p = Bun.spawn(cmd, {
     cwd: opts.cwd,
-    env: { ...process.env, ...opts.env },
+    env: { ...base, ...opts.env },
     stdout: opts.inherit ? "inherit" : "pipe",
     stderr: opts.inherit ? "inherit" : "pipe",
     stdin: opts.stdin !== undefined ? new TextEncoder().encode(opts.stdin) : "ignore",
