@@ -63,7 +63,7 @@ export const colima: Provider = {
       source: sel.source,
       dockerHost: sel.endpoint,
       context: profile === "default" ? "colima" : `colima-${profile}`,
-      // the engine maps host-gateway to the Mac (lima's host address), but nothing resolves host.docker.internal on its own
+      // colima 0.10 resolves host.docker.internal itself (lima's 192.168.5.2); older ones do not, and host-gateway is the same address
       hostAlias: "host.docker.internal",
       extraHosts: ["host.docker.internal:host-gateway"],
       watch: inotify ? "events" : "poll",
