@@ -1,7 +1,11 @@
 # cosmos
 
 Isolated instances of a project's docker compose stack on one machine: one slot of ports per instance, a git
-worktree per source-mounted service, a Caddy edge for remote backends, zrok shares and a web dashboard.
+worktree per source-mounted service, a Caddy edge, zrok shares and a web dashboard.
+
+The edge sits between an instance's frontends and the backends they call: the deployed hosts on remote profiles, the
+instance's own services on local ones. It answers CORS for the instance's origins and strips `Origin` upstream, so no
+backend needs a CORS change to run on other ports.
 
 ## Install
 
@@ -89,7 +93,7 @@ all must hold and `!x` negates.
 | `services.<svc>.volumes`, `.command` | compose short-syntax volumes added (anonymous ones become per-instance volumes keyed on the image), the command replaced |
 | `services.<svc>.layouts` | `[{when: <file in the checkout>, vars}]`: the first match gives `{{layout.*}}` (a repo with two layouts) |
 | `services.<svc>.image` | `{hashFiles, shared}`: tag keyed on file contents (`a\|b` = first that exists), one image for every instance |
-| `services.<svc>.browser` | fe: `{keys, keysIn, files: {local, remote}}`: env files plus (local) the compose environment plus `env`, written to an env file; `keys` are the URLs the edge fronts and CORS checks |
+| `services.<svc>.browser` | fe: `{keys, keysIn, files: {local, remote}}`: env files plus (local) the compose environment plus `env`, written to an env file; `keys` are the URLs the edge fronts (deployed hosts, or the instance's own service ports on local stacks) and the CORS check probes |
 | `services.<svc>.syncDeps` | `[{lockfile, run, entrypoint, caches, env}]`: when the checkout's lockfile differs, `compose run` installs into the instance's volumes |
 | `services.<svc>.air` | go: `{target, build, run}`: run air on the compose build's Dockerfile target, with these commands (`{{bin}}`) |
 | `services.<svc>.preview`, `.share` | share preview build `{out, viteTemp, command, mkOut, needMiB, dropEnv, mode}`; `share.about` / `share.notice` text per backend kind |

@@ -53,7 +53,7 @@ export const HEALTH = "/__cosmos/health";
 export const NOTICE_COOKIE = "cosmos_notice";
 export const NOTICE_CONTINUE = "/__cosmos/notice/continue";
 
-const LOCAL_URL = /\b(https?|wss?):\/\/(?:localhost|127\.0\.0\.1):(\d{2,5})(?!\d)/g;
+const LOCAL_URL = /\b(https?|wss?):\/\/(?:localhost|127\.0\.0\.1|[a-z0-9-]+\.localhost):(\d{2,5})(?!\d)/g;
 // exact media types only (parsed, before `;`); everything else, vnd.* included, passes through byte-identical
 const REWRITE = new Set(["text/html", "text/css", "text/javascript", "application/javascript", "application/json", "application/manifest+json", "image/svg+xml", "text/plain", "application/xml", "text/xml"]);
 const UTF8 = new Set(["utf-8", "utf8", "us-ascii", "ascii"]);

@@ -1,5 +1,7 @@
-// Per-instance Caddy edge for remote backends: one loopback listener per browser-facing upstream host.
-// It forwards unchanged over HTTPS (upstream Host + SNI), answers CORS for the instance's own origins, strips Origin upstream.
+// Per-instance Caddy edge: one loopback listener per browser-facing upstream host, so no backend needs a CORS change.
+// Remote backends: forwards over HTTPS (upstream Host + SNI). Local stacks: forwards to the service inside the instance
+// network, with the Host the browser would have sent. Either way it answers CORS for the instance's own origins and
+// strips Origin upstream.
 import { EDGE_OFFSETS, hostPort } from "./offsets";
 
 export const EDGE_IMAGE = "caddy:2.10.2-alpine@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d";
@@ -19,6 +21,24 @@ export function edgeUpstreams(envs: { fe: string; env: Record<string, string>; k
       const u = new URL(v.replace(/^ws/i, "http"));
       if (u.protocol !== "https:") throw new Error(`${fe} ${k}=${v}: the edge forwards to https upstreams only; use direct mode`);
       const e = out.get(u.host) ?? { host: u.host, upstream: `https://${u.host}`, keys: [] };
+      e.keys.push(`${fe}:${k}`);
+      out.set(u.host, e);
+    }
+  }
+  return [...out.values()];
+}
+
+// Local stacks: browser URLs on one of the instance's own service ports go to that service in the instance network.
+export function localUpstreams(envs: { fe: string; env: Record<string, string>; keys: string[] }[], byPort: Map<number, { svc: string; containerPort: number }>): { host: string; upstream: string; keys: string[] }[] {
+  const out = new Map<string, { host: string; upstream: string; keys: string[] }>();
+  for (const { fe, env, keys } of envs) {
+    for (const k of keys) {
+      const v = env[k];
+      if (!v || !URL_RE.test(v)) continue;
+      const u = new URL(v.replace(/^ws/i, "http"));
+      const t = /^(localhost|127\.0\.0\.1)$/.test(u.hostname) ? byPort.get(Number(u.port)) : undefined;
+      if (!t) continue;
+      const e = out.get(u.host) ?? { host: u.host, upstream: `http://${t.svc}:${t.containerPort}`, keys: [] };
       e.keys.push(`${fe}:${k}`);
       out.set(u.host, e);
     }
@@ -80,7 +100,7 @@ http://:${r.port} {
 	@allowed header_regexp Origin ${allow}
 	handle @allowed {
 		reverse_proxy ${r.upstream} {
-${upstreamOpts(r.host, "\t\t\t")}
+${upstreamOpts(r.host, r.upstream, "\t\t\t")}
 			header_down Access-Control-Allow-Origin {http.request.header.Origin}
 			header_down Access-Control-Allow-Credentials true
 			header_down Access-Control-Expose-Headers ${JSON.stringify(EXPOSE)}
@@ -89,7 +109,7 @@ ${upstreamOpts(r.host, "\t\t\t")}
 	}
 	handle {
 		reverse_proxy ${r.upstream} {
-${upstreamOpts(r.host, "\t\t\t")}
+${upstreamOpts(r.host, r.upstream, "\t\t\t")}
 		}
 	}
 }
@@ -104,16 +124,14 @@ ${upstreamOpts(r.host, "\t\t\t")}
 ${blocks.join("\n")}`;
 }
 
-// Upstream sees the request as sent to its own host: real Host and SNI, no Origin, no X-Forwarded-* added by the edge.
-function upstreamOpts(host: string, ind: string): string {
+// Upstream sees the request as sent to its own host: real Host (and SNI over https), no Origin, no X-Forwarded-* added by the edge.
+function upstreamOpts(host: string, upstream: string, ind: string): string {
   return [
     `header_up Host ${host}`,
     `header_up -Origin`,
     `header_up -X-Forwarded-For`,
     `header_up -X-Forwarded-Proto`,
     `header_up -X-Forwarded-Host`,
-    `transport http {`,
-    `\ttls_server_name ${host}`,
-    `}`,
+    ...(upstream.startsWith("https:") ? [`transport http {`, `\ttls_server_name ${host.replace(/:\d+$/, "")}`, `}`] : []),
   ].map((l) => ind + l).join("\n");
 }

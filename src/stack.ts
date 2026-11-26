@@ -216,7 +216,7 @@ export function generateStack(p: StackPlan): StackOut {
   const gen: GenContext = {
     plan: p, dir, local, origins, compose: services, vol,
     toBrowser: (fe, env, keys) => {
-      const out = p.mode === "edge" ? rewriteToEdge(env, keys, p.edge ?? []) : env;
+      const out = p.edge?.length ? rewriteToEdge(env, keys, p.edge) : env;
       directOrigins[fe] = originsOf(out, keys);
       return out;
     },

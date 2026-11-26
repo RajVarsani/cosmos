@@ -17,7 +17,7 @@ import { ensureServiceSources, ensureVendor, pinnedSha } from "./vendor";
 import { ensureWorktree, instanceSrcDir, instanceWorktrees, isWorktree, legacyUnsaved, listRefs, liveCheckout, removeWorktrees, srcServices, srcState, switchWorktree, unsavedWork, type SwitchResult } from "./sources";
 import { GIT_ENV, run, type RunResult } from "./sh";
 import { findByRef, resolveIdentity } from "./names";
-import { edgeRoutes, edgeUpstreams, type EdgeRoute } from "./edge";
+import { edgeRoutes, edgeUpstreams, localUpstreams, type EdgeRoute } from "./edge";
 import { ZROK_HOST, mintName, previewRecipe, releaseName, shareAlive, shareState, startShare, stopShare, zrokInfo, zrokUsage, type Share, type ShareState } from "./share";
 import type { ShareStatus } from "./share-proxy";
 import type { BackendStatus } from "./api";
@@ -552,6 +552,8 @@ async function upCore(o: UpOpts, r: Reporter): Promise<UpResult> {
     // and gives back the ports of one it dropped
     for (const k of Object.keys(inst.ports)) if (!(k in want)) delete inst.ports[k];
   }
+  // a copy: the local edge may join the list, and the profile's own list must not change
+  inst.services = [...inst.services];
   const runServices = inst.services;
   const poll = pollOpt ?? inst.poll ?? false;
   inst.poll = poll;
@@ -569,14 +571,22 @@ async function upCore(o: UpOpts, r: Reporter): Promise<UpResult> {
     const src = await prepareSources(inst, services, r, softWarnings, fresh, branches, o.live);
     inst.src = src;
 
-    // edge: one listener per upstream host the FE envs name; a host keeps its port across restarts
+    // edge: one listener per upstream host the FE envs name (deployed hosts, or on local stacks the instance's own
+    // service ports); a host keeps its port across restarts
     let edge: EdgeRoute[] = [];
-    if (imode === "edge") {
-      edge = edgeRoutes(inst.slot, edgeUpstreams(browserEnvs({ backend, ports: inst.ports, services, src })), inst.ports);
+    if (imode === "edge" || local) {
+      const envs = browserEnvs({ backend, ports: inst.ports, services, src });
+      const byPort = new Map(services.flatMap((s) => {
+        const d = svcDef(s);
+        return d.kind !== "fe" && inst.ports[s] && d.containerPort ? [[inst.ports[s], { svc: s, containerPort: d.containerPort }] as const] : [];
+      }));
+      edge = edgeRoutes(inst.slot, local ? localUpstreams(envs, byPort) : edgeUpstreams(envs), inst.ports);
       for (const k of Object.keys(inst.ports)) if (k.startsWith("edge:") && !edge.some((e) => e.key === k)) delete inst.ports[k];
       for (const e of edge) inst.ports[e.key] = e.port;
     } else for (const k of Object.keys(inst.ports)) if (k.startsWith("edge:")) delete inst.ports[k];
-    inst.edge = imode === "edge" ? edge : undefined;
+    inst.edge = edge.length ? edge : undefined;
+    if (local && edge.length && !runServices.includes(EDGE_SVC)) runServices.push(EDGE_SVC);
+    if (local && !edge.length && runServices.includes(EDGE_SVC)) runServices.splice(runServices.indexOf(EDGE_SVC), 1);
     inst.mode = imode;
 
     const running = await Promise.all(runServices.map(async (svc) => (await containerState(containerName(inst.name, svc)))?.running ?? false));
@@ -624,6 +634,11 @@ async function upCore(o: UpOpts, r: Reporter): Promise<UpResult> {
         }
       });
       try {
+        if (edge.length) {
+          for (const e of edge) r.log(`edge :${e.port} -> ${e.upstream}  (${e.keys.join(", ")})`);
+          await compose(inst.name, ["up", "-d", "--no-build", "--no-deps", EDGE_SVC], { check: true, onOutput: r.output });
+          created.push(EDGE_SVC);
+        }
         const skip = new Set(spec.skipServices(inst, fresh, r.log));
         for (const stage of stagesFor(services)) {
           const svcs = stage.services.filter((s) => services.includes(s) && !skip.has(s));
@@ -980,7 +995,7 @@ export async function list(): Promise<LsRow[]> {
 
 // ---------- share ----------
 
-const LOCAL_PORT = /\b(?:https?|wss?):\/\/(?:localhost|127\.0\.0\.1):(\d{2,5})(?!\d)/g;
+const LOCAL_PORT = /\b(?:https?|wss?):\/\/(?:localhost|127\.0\.0\.1|[a-z0-9-]+\.localhost):(\d{2,5})(?!\d)/g;
 
 // Ports a share may reach under /__cosmos/<port>: only what the served FE calls (localhost URLs in its container env and
 // env files: its API and edge listeners), plus cosmos.yaml share.reach. Never another FE.
