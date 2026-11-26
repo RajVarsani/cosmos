@@ -40,12 +40,11 @@ export const envDir = (bundle: string) => join(envsDir(), bundle);
 // Copies env files cosmos needs into HOME/envs/<bundle> (never overwrites a file already there).
 export async function syncEnvs(log: (m: string) => void = () => {}) {
   const { envSources } = await import("./project");
-  const { A, ctx } = await import("./adapter");
+  const { envFilter } = await import("./recipe");
   const src = envSources();
-  const a = A();
   const out: Record<string, string[]> = {};
   for (const [bundle, dir] of Object.entries(src)) {
-    out[bundle] = copyMissing(dir, envDir(bundle), (rel) => (a.envFilter ? a.envFilter(ctx(), bundle, rel) : true));
+    out[bundle] = copyMissing(dir, envDir(bundle), (rel) => envFilter(bundle, rel));
   }
   for (const [k, v] of Object.entries(out)) if (v.length) log(`copied ${v.length} env file(s) into envs/${k}: ${v.join(", ")}`);
   return out;

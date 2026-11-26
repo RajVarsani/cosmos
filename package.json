@@ -1,16 +1,12 @@
 {
   "name": "@rajvarsani/cosmos",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Isolated instances of a project's docker compose stack on one machine, with per-instance worktrees, an edge, shares and a dashboard.",
   "type": "module",
   "bin": {
     "cosmos": "bin/cosmos"
   },
   "exports": {
-    "./adapter": {
-      "types": "./src/api.ts",
-      "default": "./src/api.ts"
-    },
     "./package.json": "./package.json"
   },
   "files": [

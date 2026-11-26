@@ -5,7 +5,6 @@ import { CosmosError } from "./errors";
 import { dashboardMain } from "./dashboard/control";
 import { BACKENDS, LEGACY_PROFILES, loginConfig, manifest } from "./catalog";
 import { doctor, doctorDone, printDoctor, rememberDoctor } from "./doctor";
-import { loadAdapter } from "./adapter";
 import { HOME, hasProject } from "./paths";
 import { migrateLegacy } from "./migrate";
 
@@ -330,9 +329,6 @@ async function main() {
   if (values.project) process.env.COSMOS_PROJECT = values.project;
   const [cmd0] = positionals;
   const needsNoProject = !cmd0 || values.help || (cmd0 === "dashboard" && (values.status || values.stop)) || (cmd0 === "top" && values.demo);
-  if (!needsNoProject || hasProject()) await loadAdapter().catch((e) => {
-    if (!needsNoProject) throw e;
-  });
   if (!needsNoProject) await migrateLegacy(log);
   const legacy = values.profile && hasProject() && LEGACY_PROFILES()[values.profile];
   if (legacy) {

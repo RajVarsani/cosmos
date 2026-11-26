@@ -8,7 +8,6 @@ import { MAX_SLOT } from "./offsets";
 import type { EdgeRoute } from "./edge";
 import type { Share } from "./share";
 import { canonicalProfile, manifest } from "./catalog";
-import { A } from "./adapter";
 
 export type Instance = {
   name: string;
@@ -114,7 +113,6 @@ export function readState(): State {
   for (const i of Object.values(s.instances)) {
     if (i.profile) i.profile = canonicalProfile(i.profile);
     dropRetired(i);
-    A().migrateRecord?.(i);
     // the share password lives only in shares/<name>.json (0600), never in state.json
     if (i.share) i.share.password = i.share.public ? null : sharePassword(i.name);
   }

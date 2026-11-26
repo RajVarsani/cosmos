@@ -1,7 +1,8 @@
 // The project manifest (cosmos.yaml): services, backends, profiles, login and extras. Pure data plus validation.
 import { existsSync, readFileSync, statSync } from "fs";
-import { dirname, join, resolve } from "path";
+import { join } from "path";
 import { COSMOS_VERSION, manifestPath, projectDir, vendorRoot } from "./paths";
+import { parseRecipe, parseTop } from "./recipe-parse";
 
 export type SvcKind = "infra" | "init" | "app" | "fe";
 
@@ -37,12 +38,50 @@ export type SvcDef = {
   url?: string;
   // portless processes that must be alive for the service to work
   workers?: { name: string; match: RegExp }[];
-  // JS deps installed into instance volumes when the checkout's lockfile changes (adapter.syncDeps)
-  syncDeps?: boolean;
-  // not a compose service: an extras entry cosmos vendors and the adapter wires in
+  // deps installed into the instance's volumes when the checkout's lockfile changes: the first entry whose lockfile exists
+  syncDeps?: SyncDeps[];
+  // not a compose service: an extras entry cosmos vendors and runs from this definition
   extra?: string;
   dependsOn?: string[];
   calledBy?: string[];
+  // environment merged over the compose service's (templates; {value, if, else} for conditional values)
+  env?: Record<string, EnvValue>;
+  // volumes added to the compose service's, compose short syntax with templates
+  volumes?: string[];
+  command?: string[];
+  // per-checkout vars ({{layout.<name>}}): the first entry whose `when` file exists in the service's checkout
+  layouts?: { when?: string; vars: Record<string, string> }[];
+  // the image: a tag keyed on these files' contents (a|b: the first that exists), shared by every instance
+  image?: { hashFiles: string[]; shared: boolean };
+  // fe only: the env its browser code reads, written to an env file the container loads
+  browser?: { keys: string[]; keysIn?: string; files: { local: string[]; remote: string[] } };
+  preview?: Preview;
+  share?: { about?: KindText; notice?: KindText };
+  // go under air: build the compose build's target instead of cosmos's go-air image, and these build/run commands
+  air?: { target?: string; build?: string; run?: string };
+  // init: skipped on an existing instance when this file exists in the instance dir
+  skipIfExists?: string;
+  // init: a non-zero exit whose logs match is a warning, not a failed start
+  softFail?: { match: RegExp; warning: string };
+  // restarted once when any of its workers is dead after this init service finished
+  restartDeadWorkersAfter?: string;
+};
+
+export type EnvValue = string | { value: string; if?: string[]; else?: string };
+export type KindText = { local?: string; remote?: string };
+export type SyncDeps = { lockfile: string; run: string[]; entrypoint?: string; caches: Record<string, string>; env: Record<string, string> };
+export type Preview = { out: string; viteTemp: string; command: string; mkOut: boolean; needMiB: number; dropEnv: string[]; mode: { local?: "production" | "development"; remote?: "production" | "development" } };
+export type Requirement = { file: string; fix?: string };
+export type DerivedVar = { service: string; file: string; match: string };
+export type Secret = { service: string; file: string; keys: string[]; command: string[]; fix?: string };
+export type SeedSpec = { service: string; requires: string[]; counts?: { service: string; command: string[]; stdin?: string } };
+export type ShareSpec = { reach: { local?: string[]; remote?: string[] }; block: { local?: { service: string; prefixes: string[] }[]; remote?: { service: string; prefixes: string[] }[] } };
+export type DashboardSpec = {
+  backends?: Record<string, { c: string; core: string; star: number; guard?: boolean }>;
+  services?: Record<string, string>;
+  looks?: Record<string, { k: number; tilt: number; spin: number; atm: string | null; atmK: number; atmR?: number; ring?: boolean }>;
+  steps?: { match: string; text: string; svc?: string }[];
+  pins?: string[];
 };
 
 export type Backend = { id: string; kind: "remote" | "local"; aliases: string[]; live: boolean; vars: Record<string, string> };
@@ -68,10 +107,19 @@ export type Manifest = {
   projectId: string;
   compose: string;
   sourcesDir: string;
-  adapter: string | null;
   network: string | null;
   composeEnvFiles: { prefix: string; bundle: string } | null;
   envSources: Record<string, string[]>;
+  // which files of an env source get copied into HOME/envs/<bundle> (globs; none = all)
+  envInclude: Record<string, string[]>;
+  vars: Record<string, DerivedVar>;
+  requires: { local: Requirement[]; remote: Requirement[] };
+  backendHost: { file: string; key: string } | null;
+  secrets: Secret[];
+  seed: SeedSpec | null;
+  share: ShareSpec;
+  hooks: { beforeDown?: string };
+  dashboard: DashboardSpec;
   prefetch: string[];
   defaults: { backend: string | null; profile: string | null; build: string | null };
   services: SvcDef[];
@@ -94,8 +142,10 @@ const EDGE_DEF: SvcDef = { svc: EDGE_SVC, kind: "app", health: null, estMiB: 30 
 // offsets cosmos keeps for itself: the edge listeners and the share proxy
 export const RESERVED_OFFSETS = { edge: [40, 49], share: 60 } as const;
 
-const TOP_KEYS = ["schemaVersion", "cosmos", "projectId", "compose", "sourcesDir", "adapter", "network", "composeEnvFiles", "envSources", "prefetch", "defaults", "services", "backends", "stages", "legacyProfiles", "retiredServices", "login", "images", "extras", "profiles"];
-const SVC_KEYS = ["kind", "offset", "containerPort", "extraPorts", "health", "srcMount", "go", "goMain", "estMiB", "repo", "uses", "hostPort", "origin", "remote", "ready", "url", "workers", "syncDeps", "extra", "dependsOn", "calledBy"];
+const TOP_KEYS = ["schemaVersion", "cosmos", "projectId", "compose", "sourcesDir", "network", "composeEnvFiles", "envSources", "prefetch", "defaults", "vars", "requires", "backendHost", "secrets", "services", "backends", "stages", "seed", "share", "hooks", "legacyProfiles", "retiredServices", "login", "images", "extras", "dashboard", "profiles"];
+const SVC_KEYS = ["kind", "offset", "containerPort", "extraPorts", "health", "srcMount", "go", "goMain", "estMiB", "repo", "uses", "hostPort", "origin", "remote", "ready", "url", "workers", "syncDeps", "extra", "dependsOn", "calledBy", "env", "volumes", "command", "layouts", "image", "browser", "preview", "share", "air", "skipIfExists", "softFail", "restartDeadWorkersAfter"];
+// words an `if:` may use besides service names
+export const IF_WORDS = ["local", "remote", "poll"];
 const PROFILE_KEYS = ["title", "about", "backend", "default", "services"];
 const reEsc = (s: string) => s.replace(/[.*+?^${}()|[\]\\\/-]/g, "\\$&");
 
@@ -129,8 +179,9 @@ function parse(file: string, text: string): Manifest {
     throw new ConfigError(`${file}: ${(e as Error).message}`);
   }
   if (!doc || typeof doc !== "object" || Array.isArray(doc)) fail(1, "expected a map at the top level");
+  if (doc.adapter !== undefined) fail(keyLine("adapter", 0), `"adapter" is gone in cosmos 0.4: everything project-specific is data in cosmos.yaml. See the 0.3 to 0.4 migration in the cosmos README`);
   for (const k of Object.keys(doc)) if (!TOP_KEYS.includes(k)) fail(keyLine(k, 0), `unknown top-level key "${k}" (allowed: ${TOP_KEYS.join(", ")})`);
-  if (typeof doc.schemaVersion === "number" && doc.schemaVersion > 1) fail(keyLine("schemaVersion", 0), `schemaVersion ${doc.schemaVersion} is newer than this cosmos reads (1); installed ${COSMOS_VERSION}. Update it: bun add -d @rajvarsani/cosmos@latest`);
+  if (typeof doc.schemaVersion === "number" && doc.schemaVersion > 1) fail(keyLine("schemaVersion", 0), `schemaVersion ${doc.schemaVersion} is newer than this cosmos reads (1); installed ${COSMOS_VERSION}. Update it: bun add -g @rajvarsani/cosmos@latest`);
   if (doc.schemaVersion !== 1) fail(keyLine("schemaVersion", 0), `schemaVersion must be 1 (this cosmos reads version 1)`);
   if (doc.cosmos !== undefined) {
     const range = typeof doc.cosmos === "string" && doc.cosmos ? doc.cosmos : fail(keyLine("cosmos", 0), "cosmos must be a semver range such as \">=0.2.0\"");
@@ -140,7 +191,7 @@ function parse(file: string, text: string): Manifest {
     } catch {
       fail(keyLine("cosmos", 0), `cosmos: "${range}" is not a semver range`);
     }
-    if (!ok) fail(keyLine("cosmos", 0), `this project needs cosmos ${range}; installed ${COSMOS_VERSION}. Update it: bun add -d @rajvarsani/cosmos@latest`);
+    if (!ok) fail(keyLine("cosmos", 0), `this project needs cosmos ${range}; installed ${COSMOS_VERSION}. Update it: bun add -g @rajvarsani/cosmos@latest`);
   }
   const str = (k: string, v: unknown, line: number) => (typeof v === "string" && v ? v : fail(line, `${k} must be a non-empty string`));
   const strList = (k: string, v: unknown, line: number): string[] => (Array.isArray(v) && v.every((x) => typeof x === "string") ? v : fail(line, `${k} must be a list of strings`));
@@ -150,7 +201,6 @@ function parse(file: string, text: string): Manifest {
   if (!/^[a-z0-9][a-z0-9-]{0,40}$/.test(projectId)) fail(keyLine("projectId", 0), "projectId must be lowercase letters, digits, dashes");
   const compose = str("compose", doc.compose ?? "docker-compose.yml", keyLine("compose", 0));
   const sourcesDir = str("sourcesDir", doc.sourcesDir ?? "services", keyLine("sourcesDir", 0));
-  const adapter = doc.adapter === undefined ? null : str("adapter", doc.adapter, keyLine("adapter", 0));
   const network = doc.network === undefined ? null : str("network", doc.network, keyLine("network", 0));
   let composeEnvFiles: Manifest["composeEnvFiles"] = null;
   if (doc.composeEnvFiles !== undefined) {
@@ -159,12 +209,17 @@ function parse(file: string, text: string): Manifest {
     composeEnvFiles = { prefix: str("composeEnvFiles.prefix", c.prefix, n), bundle: str("composeEnvFiles.bundle", c.bundle, n) };
   }
   const envSources: Record<string, string[]> = {};
+  const envInclude: Record<string, string[]> = {};
   if (doc.envSources !== undefined) {
     const n = keyLine("envSources", 0);
     for (const [k, v] of Object.entries(map("envSources", doc.envSources, n))) {
       const kl = keyLine(k, 2, n - 1);
       if (!/^[a-z0-9][a-z0-9._-]*$/i.test(k)) fail(kl, `envSources key "${k}" must be a plain folder name`);
-      envSources[k] = typeof v === "string" ? [v] : strList(`envSources.${k}`, v, kl);
+      if (v && typeof v === "object" && !Array.isArray(v)) {
+        for (const x of Object.keys(v)) if (!["from", "include"].includes(x)) fail(kl, `envSources.${k}: unknown key "${x}" (allowed: from, include)`);
+        envSources[k] = typeof (v as any).from === "string" ? [(v as any).from] : strList(`envSources.${k}.from`, (v as any).from, kl);
+        if ((v as any).include !== undefined) envInclude[k] = strList(`envSources.${k}.include`, (v as any).include, kl);
+      } else envSources[k] = typeof v === "string" ? [v] : strList(`envSources.${k}`, v, kl);
     }
   }
   const prefetch = doc.prefetch === undefined ? [] : strList("prefetch", doc.prefetch, keyLine("prefetch", 0));
@@ -205,7 +260,7 @@ function parse(file: string, text: string): Manifest {
     }
     if (r.health !== undefined) d.health = r.health === null ? null : str(`${svc}.health`, r.health, sub("health"));
     if (r.srcMount !== undefined) d.srcMount = r.srcMount === null ? null : str(`${svc}.srcMount`, r.srcMount, sub("srcMount"));
-    for (const k of ["go", "origin", "remote", "syncDeps"] as const) if (r[k] !== undefined) {
+    for (const k of ["go", "origin", "remote"] as const) if (r[k] !== undefined) {
       if (typeof r[k] !== "boolean") fail(sub(k), `service ${svc}: ${k} must be true or false`);
       (d as any)[k] = r[k];
     }
@@ -223,14 +278,20 @@ function parse(file: string, text: string): Manifest {
     }
     if (r.dependsOn !== undefined) d.dependsOn = strList(`${svc}.dependsOn`, r.dependsOn, sub("dependsOn"));
     if (r.calledBy !== undefined) d.calledBy = strList(`${svc}.calledBy`, r.calledBy, sub("calledBy"));
+    parseRecipe(d, r, sub, { str, strList, map, fail });
     services.push(d);
   }
   const names = new Set(services.map((s) => s.svc));
+  for (const w of IF_WORDS) if (names.has(w)) fail(keyLine(w, 2, svcLine0 - 1), `service name "${w}" is reserved (an if: word)`);
   for (const d of services) {
     const line = keyLine(d.svc, 2, svcLine0 - 1);
-    for (const k of ["uses", ...(d.dependsOn ?? []), ...(d.calledBy ?? [])]) {
+    for (const k of ["uses", ...(d.dependsOn ?? []), ...(d.calledBy ?? []), ...(d.restartDeadWorkersAfter ? [d.restartDeadWorkersAfter] : [])]) {
       const ref = k === "uses" ? d.uses : k;
       if (ref && !names.has(ref)) fail(line, `service ${d.svc}: refers to unknown service "${ref}"`);
+    }
+    for (const v of Object.values(d.env ?? {})) for (const w of typeof v === "object" ? v.if ?? [] : []) {
+      const t = w.replace(/^!/, "");
+      if (!IF_WORDS.includes(t) && !names.has(t)) fail(line, `service ${d.svc}: if "${w}" is not a service or one of ${IF_WORDS.join(", ")}`);
     }
   }
   services.push(EDGE_DEF);
@@ -292,8 +353,9 @@ function parse(file: string, text: string): Manifest {
   }
   for (const d of services) if (d.extra && !extras.some((x) => x.id === d.extra)) fail(keyLine(d.svc, 2, svcLine0 - 1), `service ${d.svc}: extra "${d.extra}" is not in extras`);
 
+  const top = parseTop(doc, names, keyLine, { str, strList, map, fail });
   const base: Omit<Manifest, "profiles" | "warnings"> = {
-    file, projectId, compose, sourcesDir, adapter, network, composeEnvFiles, envSources, prefetch, defaults, services, backends, stages, legacyProfiles, retiredServices, login, images, extras,
+    file, projectId, compose, sourcesDir, network, composeEnvFiles, envSources, envInclude, prefetch, defaults, services, backends, stages, legacyProfiles, retiredServices, login, images, extras, ...top,
   };
   const { profiles, warnings } = parseProfiles(base, doc.profiles, lineOf, at);
   return { ...base, profiles, warnings };
@@ -383,10 +445,6 @@ export const vendorDir = () => join(vendorRoot(), projectId());
 export const composeFile = () => join(vendorDir(), manifest().compose);
 export const vendorSvcDir = (svc: string) => join(vendorDir(), manifest().sourcesDir, svc);
 export const extraDir = (id: string) => join(vendorRoot(), id);
-export const adapterPath = () => {
-  const a = manifest().adapter;
-  return a ? resolve(dirname(manifest().file), a) : null;
-};
 
 export const svcDef = (svc: string): SvcDef => {
   const d = SERVICES().find((s) => s.svc === svc);

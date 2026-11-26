@@ -71,6 +71,7 @@ export async function ensureImage(spec: BuildSpec, r: Rep, force = false): Promi
     r.log(`building ${spec.tag} (${spec.about}); VM available ${probe.mib} MiB`);
     const args = ["docker", "build", "--progress=plain", "-t", spec.tag, "--label", `cosmos.image=${spec.key}`, "-f", spec.dockerfile];
     for (const [k, v] of Object.entries(spec.args)) args.push("--build-arg", `${k}=${v}`);
+    if (spec.target) args.push("--target", spec.target);
     args.push(spec.context);
     const t0 = Date.now();
     let breach: number | null = null;

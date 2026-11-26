@@ -21,7 +21,7 @@ import { edgeRoutes, edgeUpstreams, type EdgeRoute } from "./edge";
 import { ZROK_HOST, mintName, previewRecipe, releaseName, shareAlive, shareState, startShare, stopShare, zrokInfo, zrokUsage, type Share, type ShareState } from "./share";
 import type { ShareStatus } from "./share-proxy";
 import type { BackendStatus } from "./api";
-import { A, ctx } from "./adapter";
+import * as spec from "./recipe";
 import { CosmosError, type Reporter } from "./errors";
 import { waitHttp, workers, WORKERS } from "./probe";
 import { dockerEnv, runtime } from "./runtime";
@@ -116,15 +116,15 @@ async function prepareSources(inst: Instance, services: string[], r: Reporter, s
   return src;
 }
 
-// services with syncDeps install the checkout's deps into the instance's volumes (adapter.syncDeps) when they changed
+// services with syncDeps install the checkout's deps into the instance's volumes when they changed
 const depsServices = (src: Record<string, string>) => SVC_DEFS().filter((d) => d.syncDeps && src[d.svc]).map((d) => d.svc);
 
 async function syncDeps(inst: Instance, svc: string, dir: string, r: Reporter, soft: string[]): Promise<void> {
-  await A().syncDeps?.(ctx(), inst, svc, dir, r, soft);
+  await spec.syncDeps(inst, svc, dir, r, soft);
 }
 
 export function backendStatus(b: Backend): BackendStatus {
-  return A().backendStatus?.(ctx(), b) ?? { available: true, reason: null };
+  return spec.backendStatus(b);
 }
 
 // Available remote backends, plus every local one (v0 callers read this list).
@@ -166,7 +166,7 @@ export async function catalog(o: { sync?: boolean } = {}) {
     const bk = findBackend(b.id)!;
     if (!b.available) reason = b.reason;
     else if (!profileAllows(p, bk)) reason = p.backendKind === "local" ? `${p.id} brings its own backends; runs only on local` : p.backends ? `${p.id} is limited to ${p.backends.join(", ")}` : `${p.id} runs against a deployed backend`;
-    else if ((reason = A().profileBlocker?.(ctx(), p, bk, statuses.get(b.id)!) ?? null)) {}
+    else if ((reason = spec.profileBlocker(p, bk))) {}
     else if ("error" in vm) reason = `cannot measure docker VM memory: ${vm.error}`;
     else if (vm.mib - est < VM_FLOOR_MIB) reason = "needs more free memory than the VM has";
     return { est, reason };
@@ -421,8 +421,7 @@ async function waitStage(inst: Instance, stage: string[], deadline: number, r: R
       const cn = containerName(inst.name, svc);
       const c = await containerState(cn);
       if (d.kind === "init") {
-        const done = await A().waitInit?.(ctx(), inst, svc, c, soft);
-        if (done ?? (!c || c.status === "exited")) pending.delete(svc);
+        if (await spec.waitInit(inst, svc, c, soft)) pending.delete(svc);
         continue;
       }
       const crash = await crashState(cn);
@@ -447,16 +446,15 @@ async function waitStage(inst: Instance, stage: string[], deadline: number, r: R
   }
 }
 
-// Re-runs the project's seed (adapter.seed) on a running instance.
+// Re-runs the project's seed (cosmos.yaml seed) on a running instance.
 export async function seed(ref: string, r: Reporter) {
   const inst = getInstance(ref);
   const name = inst.name;
-  const a = A();
-  if (!a.seed) throw new CosmosError(`${manifest().projectId} has no seed (its adapter defines none)`);
+  if (!spec.hasSeed()) throw new CosmosError(`${manifest().projectId} has no seed (cosmos.yaml defines none)`);
   const lock = tryOpLock(name);
   try {
     const t0 = Date.now();
-    const res = await a.seed(ctx(), inst, r);
+    const res = await spec.seed(inst, r);
     await withState((s) => {
       const cur = s.instances[name];
       if (cur) cur.warnings = [...(cur.warnings ?? []).filter((w) => !res.clear?.test(w)), ...res.warnings];
@@ -563,7 +561,7 @@ async function upCore(o: UpOpts, r: Reporter): Promise<UpResult> {
   try {
     await ensureVendor(r.log);
     await syncEnvs(r.log);
-    await A().prepare?.(ctx(), { services: runServices, local, log: r.log });
+    if (local) await spec.fillSecrets(runServices, r.log);
     await ensureServiceSources(services, r.log);
     const src = await prepareSources(inst, services, r, softWarnings, fresh, branches, o.live);
     inst.src = src;
@@ -623,7 +621,7 @@ async function upCore(o: UpOpts, r: Reporter): Promise<UpResult> {
         }
       });
       try {
-        const skip = new Set(A().skipServices?.(ctx(), inst, fresh, r.log) ?? []);
+        const skip = new Set(spec.skipServices(inst, fresh, r.log));
         for (const stage of stagesFor(services)) {
           const svcs = stage.services.filter((s) => services.includes(s) && !skip.has(s));
           if (!svcs.length) continue;
@@ -633,7 +631,7 @@ async function upCore(o: UpOpts, r: Reporter): Promise<UpResult> {
           await compose(inst.name, ["up", "-d", "--no-build", ...svcs], { check: true, onOutput: r.output });
           created.push(...svcs);
           await waitStage(inst, svcs, deadline, r, softWarnings);
-          await A().afterStage?.(ctx(), inst, stage.id, svcs, r, softWarnings, deadline);
+          await spec.afterStage(inst, svcs, r, softWarnings, deadline);
           timings[`stage:${stage.id}`] = Date.now() - s0;
           const now = await vmAvailableMiB();
           if (!("error" in now)) r.log(`stage ${stage.id} up in ${Math.round((Date.now() - s0) / 1000)}s; VM available ${now.mib} MiB`);
@@ -887,7 +885,7 @@ export async function down(names: string[], o: { all?: boolean; remove: boolean;
         }
         if (unsaved.length) throw new CosmosError(`not removing ${i.name}: its worktrees hold work that would be lost: ${unsaved.join("; ")}. Commit or push it, or rm --force`, { unsaved });
       }
-      const extra = (await A().beforeDown?.(ctx(), i, { remove: o.remove }, r)) || {};
+      await spec.beforeDown(i, { remove: o.remove }, r);
       if (i.share) await (o.remove ? endShare(i, r) : pauseShare(i, r));
       if (o.remove && i.shareName?.owned) {
         const n = i.shareName.name;
@@ -905,7 +903,7 @@ export async function down(names: string[], o: { all?: boolean; remove: boolean;
         await compose(i.name, o.remove ? ["down", "-v", "--remove-orphans"] : ["down"], { check: true, onOutput: r.output });
       }
       if (o.remove) {
-        const vols = [...new Set([...(extra.volumes ?? []), ...(await instanceVolumes(i.name))])].filter(Boolean);
+        const vols = [...new Set(await instanceVolumes(i.name))].filter(Boolean);
         await removeVolumes(vols);
         await untagImages(Object.entries(i.images ?? {}).filter(([k]) => !k.endsWith("@shared")).map(([, v]) => v));
         await removeWorktrees(i.name, r.log, { force: o.force });
@@ -982,7 +980,7 @@ export async function list(): Promise<LsRow[]> {
 const LOCAL_PORT = /\b(?:https?|wss?):\/\/(?:localhost|127\.0\.0\.1):(\d{2,5})(?!\d)/g;
 
 // Ports a share may reach under /__cosmos/<port>: only what the served FE calls (localhost URLs in its container env and
-// env files: its API and edge listeners), plus what the adapter adds. Never another FE.
+// env files: its API and edge listeners), plus cosmos.yaml share.reach. Never another FE.
 export async function shareReach(i: Instance, fe: string): Promise<Record<string, number>> {
   const keyOf = new Map(Object.entries(i.ports).map(([k, p]) => [p, k]));
   const texts: string[] = [];
@@ -1000,25 +998,25 @@ export async function shareReach(i: Instance, fe: string): Promise<Record<string
     const k = keyOf.get(Number(m[1]));
     if (k && SVC_DEFS().find((d) => d.svc === k)?.kind !== "fe") out[k] = Number(m[1]);
   }
-  return A().shareReach?.(ctx(), i, fe, out) ?? out;
+  return spec.shareReach(i, out);
 }
 
-// paths a share blocks unless --expose-admin (adapter.shareBlock)
+// paths a share blocks unless --expose-admin (cosmos.yaml share.block)
 export function shareBlock(i: Instance, exposeAdmin: boolean): { port: number; prefixes: string[] }[] {
   if (exposeAdmin) return [];
-  return A().shareBlock?.(ctx(), i, exposeAdmin) ?? [];
+  return spec.shareBlock(i);
 }
 
-// One line: what someone opening the link gets (adapter.remoteView, else a generic line).
+// One line: what someone opening the link gets, plus cosmos.yaml's share.about for the FE.
 export function remoteView(i: Instance, fe: string, sh: Pick<Share, "url" | "public" | "exposeAdmin" | "notice" | "reach">): string {
-  const custom = A().remoteView?.(ctx(), i, fe, sh);
-  if (custom) return custom;
   const gate = sh.public ? "no password" : "share password first";
   const others = i.services.filter((s) => svcDef(s).kind === "fe" && s !== fe);
   const also = others.length ? ` ${others.join(", ")} not in this share (one FE per share: cosmos share ${i.name} --fe ${others[0]} instead).` : "";
   const r = sh.reach;
   const reach = r ? ` Reachable: ${fe} at /${Object.keys(r).length ? `, ${Object.entries(r).map(([k, p]) => `${k} at /__cosmos/${p}`).join(", ")}` : ""}; nothing else on this stack.` : "";
-  return `${fe} preview build against ${modeOf(i) === "local" ? "this stack's own backends" : i.backend} (${gate}).${reach}${also}`;
+  const blocked = spec.shareBlock(i).flatMap((b) => b.prefixes);
+  const block = blocked.length && r ? ` ${blocked.join(", ")} ${sh.exposeAdmin ? "exposed" : "blocked"}.` : "";
+  return `${fe} preview build against ${modeOf(i) === "local" ? "this stack's own backends" : i.backend} (${gate}).${spec.shareAbout(i, fe)}${block}${reach}${also}`;
 }
 
 // ifStill: restart only the share seen at that moment (the supervisor, up resuming); gives up if it was turned off or changed since.
@@ -1114,7 +1112,7 @@ export async function share(ref: string, o: ShareOpts, r: Reporter): Promise<Sha
       }
     }
     const zrokName = named?.name ?? null;
-    const shareNotice = zrokName ? A().shareNotice?.(ctx(), i, fe, `https://${zrokName}.${ZROK_HOST}`) ?? null : null;
+    const shareNotice = zrokName ? spec.shareNotice(i, fe, `https://${zrokName}.${ZROK_HOST}`) : null;
     const notice = shareNotice?.text ?? null;
 
     const running = await feUp(i, fe);
@@ -1130,7 +1128,7 @@ export async function share(ref: string, o: ShareOpts, r: Reporter): Promise<Sha
     const sh = await startShare({
       inst: i, fe, fePort: i.ports[fe], allowed: Object.values(reach), port, public: pub, zrokName,
       block: shareBlock(i, exposeAdmin), notice: shareNotice?.html ?? null,
-      previewMode: A().previewMode?.(ctx(), i, fe) ?? "production", srcDir: i.src[fe] ?? null, log: r.log,
+      previewMode: spec.previewMode(i, fe), srcDir: i.src[fe] ?? null, log: r.log,
     }).catch((e) => {
       throw new CosmosError((e as Error).message);
     });

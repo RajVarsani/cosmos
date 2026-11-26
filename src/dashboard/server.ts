@@ -9,7 +9,7 @@ import { projectDir } from "../paths";
 import { BASE_PORT, MAX_SLOT, SLOT_STRIDE, OFFSETS } from "../offsets";
 import { MIN_VM_MIB, VM_FLOOR_MIB } from "../ops";
 import { manifest, svcDef, vendorDir } from "../catalog";
-import { A, ctx } from "../adapter";
+import { dashboardMeta } from "../recipe";
 import type { DashboardMeta } from "../api";
 import { run } from "../sh";
 import { shareAlive } from "../share";
@@ -114,11 +114,11 @@ async function refreshGit(force = false) {
   );
 }
 
-// the project checkout and its vendored worktree, plus the adapter's own facts and looks
+// the project checkout and its vendored worktree, plus cosmos.yaml's dashboard looks and pinned services
 async function refreshPins() {
   const repo = projectDir();
   const [p, v] = await Promise.all([ops.gitInfo(repo), ops.gitInfo(vendorDir())]);
-  const { pins, ...meta } = (await A().dashboard?.(ctx())) ?? {};
+  const { pins, ...meta } = await dashboardMeta();
   cache.meta = meta;
   cache.pins = { project: { id: manifest().projectId, repo, head: p.sha, vendored: v.sha }, items: pins ?? [] };
 }

@@ -157,7 +157,7 @@ test("0.1 layout migrates on first run: records, dirs, paths, symlinks, foreign 
   expect(Object.keys(JSON.parse(readFileSync(join(home, ".state", "state.json"), "utf8")).instances)).toEqual(["orion"]);
   const reg = JSON.parse(readFileSync(join(home, "registry.json"), "utf8"));
   expect(reg.claims["demo/vega"]).toMatchObject({ projectId: "demo", projectDir: dir, slot: 1, prefix: "cosmos-vega" });
-  const m = JSON.parse(await evalIn(dir, home, `import { readState, usedSlots, reservedNames } from "${SRC}/state.ts"; import { loadAdapter } from "${SRC}/adapter.ts"; await loadAdapter(); const s = readState(); console.log(JSON.stringify({ slots: [...usedSlots(s)].sort(), names: reservedNames(s) }))`));
+  const m = JSON.parse(await evalIn(dir, home, `import { readState, usedSlots, reservedNames } from "${SRC}/state.ts"; const s = readState(); console.log(JSON.stringify({ slots: [...usedSlots(s)].sort(), names: reservedNames(s) }))`));
   expect(m).toEqual({ slots: [1, 2], names: ["orion"] });
   // second run: nothing left to do
   const again = await cli(dir, home, "ls");
@@ -173,7 +173,7 @@ test("another project's claim reserves its slot and name, and an explicit name i
   const home = scratch();
   writeFileSync(join(home, "registry.json"), JSON.stringify({ version: 1, claims: { "other/vega": claim("other", "vega", 1) } }));
   const dir = project();
-  const m = JSON.parse(await evalIn(dir, home, `import { readState, slotCandidates, reservedNames } from "${SRC}/state.ts"; import { loadAdapter } from "${SRC}/adapter.ts"; await loadAdapter(); const s = readState(); console.log(JSON.stringify({ first: slotCandidates(s)[0], names: reservedNames(s) }))`));
+  const m = JSON.parse(await evalIn(dir, home, `import { readState, slotCandidates, reservedNames } from "${SRC}/state.ts"; const s = readState(); console.log(JSON.stringify({ first: slotCandidates(s)[0], names: reservedNames(s) }))`));
   expect(m).toEqual({ first: 2, names: ["vega"] });
   for (const a of [["init", "-q"], ["add", "."], ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "x"]]) Bun.spawnSync(["git", "-C", dir, ...a]);
   const up = await cli(dir, home, "up", "--backend", "stage", "--name", "vega", "--skip-doctor");

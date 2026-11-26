@@ -13,7 +13,7 @@ import { readState } from "./state";
 import { dashboardPort, isDashboardCommand, PID_FILE } from "./dashboard/control";
 import { GIT_ENV, run } from "./sh";
 import { zrokInfo } from "./share";
-import { A, ctx } from "./adapter";
+import { doctorChecks } from "./recipe";
 import type { Check } from "./api";
 import { runtime } from "./runtime";
 
@@ -209,8 +209,13 @@ export async function doctor(): Promise<{ checks: Check[]; ok: boolean }> {
   try {
     if (p.path) sources = envSources();
   } catch {}
-  const custom = p.path ? A().doctor?.(ctx(), { sources }).catch((e) => [bad("project checks", (e as Error).message, "see the project's adapter")]) : undefined;
-  const [vendor, remotes, ports, zrok, extra, registry] = await Promise.all([checkVendor(p.path), checkRemotes(p.path), checkPorts(), checkZrok(), custom ?? Promise.resolve([] as Check[]), checkRegistry(p.path)]);
+  let custom: Check[] = [];
+  try {
+    if (p.path) custom = doctorChecks(sources);
+  } catch (e) {
+    custom = [bad("project checks", (e as Error).message, "see cosmos.yaml")];
+  }
+  const [vendor, remotes, ports, zrok, extra, registry] = await Promise.all([checkVendor(p.path), checkRemotes(p.path), checkPorts(), checkZrok(), Promise.resolve(custom), checkRegistry(p.path)]);
   const checks = [bun, ...docker, ...p.checks, vendor, ...extra, registry, remotes, ports, ...zrok];
   return { checks, ok: checks.every((c) => c.ok || c.optional) };
 }

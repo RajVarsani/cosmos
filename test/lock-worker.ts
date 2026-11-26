@@ -1,8 +1,6 @@
 import { appendFileSync } from "fs";
 import { withState } from "../src/state";
-import { loadAdapter } from "../src/adapter";
 
-await loadAdapter().catch(() => {});
 
 const [iterations, holdMs] = Bun.argv.slice(2).map(Number);
 for (let k = 0; k < iterations; k++) {

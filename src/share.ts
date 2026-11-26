@@ -8,7 +8,7 @@ import { PKG_ROOT, projectStateDir } from "./paths";
 import { run } from "./sh";
 import { containerName } from "./generate";
 import { localConfig } from "./project";
-import { A, ctx } from "./adapter";
+import { previewRecipe as recipePreview } from "./recipe";
 import type { PreviewRecipe } from "./api";
 import type { Instance } from "./state";
 import type { ProxyConfig, ShareStatus } from "./share-proxy";
@@ -24,7 +24,7 @@ export type Share = {
   password: string | null;
   zrokName: string | null;
   exposeAdmin?: boolean;
-  // what the share origin needs before sign-in works (adapter.shareNotice)
+  // what the share origin needs before sign-in works (cosmos.yaml share.notice)
   notice?: string | null;
   // set when the share is on but cannot run (zrok plan limit, zrok missing); no processes then
   unavailable?: string | null;
@@ -219,17 +219,17 @@ export async function zrokUsage(): Promise<Usage | null> {
 // ---------- preview container: the FE container's image, env and mounts, one `vite build` per start ----------
 
 // The worktree is never writable from the build: /app is a tmpfs with each top-level entry of the source bound read-only on it,
-// so the output dir and any other write land in the container, not the worktree. The adapter gives the recipe per FE:
+// so the output dir and any other write land in the container, not the worktree. cosmos.yaml gives the recipe per FE:
 // out (the build's output dir), viteTemp (where vite writes its bundled config; a tmpfs there) and the command.
 export const VITE_BUILD = ["build", "--sourcemap", "false", "--emptyOutDir", "true"];
 const DROP_ENV = ["HOSTNAME", "HOME", "PATH", "CHOKIDAR_\\w+"];
 
-export const previewRecipe = (inst: Instance, fe: string): PreviewRecipe | null => A().previewRecipe?.(ctx(), inst, fe) ?? null;
+export const previewRecipe = (inst: Instance, fe: string): PreviewRecipe | null => recipePreview(inst, fe);
 
-// mode: the adapter's previewMode (a dev-only auth bypass needs a development build)
+// mode: cosmos.yaml's preview.mode (a dev-only auth bypass needs a development build)
 export async function createPreview(inst: Instance, fe: string, mode: "production" | "development"): Promise<string> {
   const spec = previewRecipe(inst, fe);
-  if (!spec) throw new Error(`no preview recipe for ${fe}; the project's adapter defines previewRecipe for the FEs it can share`);
+  if (!spec) throw new Error(`no preview recipe for ${fe}; cosmos.yaml gives services.<fe>.preview for the FEs it can share`);
   const drop = new RegExp(`^(${[...DROP_ENV, ...(spec.dropEnv ?? [])].join("|")})=`);
   const src = containerName(inst.name, fe);
   const r = await run(["docker", "inspect", src], { quiet: true });

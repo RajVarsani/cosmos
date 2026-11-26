@@ -28,7 +28,7 @@ async function drain(stream: ReadableStream<Uint8Array>, name: "stdout" | "stder
 }
 
 export async function run(cmd: string[], opts: RunOpts = {}): Promise<RunResult> {
-  // every docker call (core's and the adapter's ctx.run) goes to the active runtime's engine
+  // every docker call (core's and the recipe's) goes to the active runtime's engine
   const base = cmd[0] === "docker" ? dockerEnv() : process.env;
   const p = Bun.spawn(cmd, {
     cwd: opts.cwd,

@@ -1,5 +1,4 @@
-// The adapter contract. A project's adapter module imports these with `import type` only; every runtime helper it needs
-// arrives through AdapterContext, so there is never a second copy of core state.
+// Shared types for the compose generator, images, previews, checks and the dashboard.
 import type { Backend, LoginConfig, Manifest, Profile, SvcDef } from "./catalog";
 import type { CosmosContainer, CState } from "./docker";
 import type { RuntimeInfo } from "./runtime/types";
@@ -12,7 +11,7 @@ import type { Share } from "./share";
 
 export type { Backend, CorsCheck, EdgeRoute, Instance, LoginConfig, Manifest, Profile, Reporter, RunOpts, RunResult, Share, SvcDef };
 
-export type BuildSpec = { key: string; tag: string; dockerfile: string; context: string; args: Record<string, string>; about: string };
+export type BuildSpec = { key: string; tag: string; dockerfile: string; context: string; args: Record<string, string>; target?: string; about: string };
 
 export type ComposeSvc = {
   image?: string;
@@ -40,7 +39,7 @@ export type StackPlan = {
   edge?: EdgeRoute[];
 };
 
-// One service of the generated compose override, as core derived it; composeService may change any field.
+// One service of the generated compose override, as core derived it; the cosmos.yaml recipe may change any field.
 export type ServiceDraft = {
   svc: string;
   def: SvcDef;
@@ -102,99 +101,3 @@ export type DashboardMeta = {
   // project facts shown in the pins panel
   pins?: { label: string; value: string; detail?: string }[];
 };
-
-export type AdapterContext = {
-  project: { dir: string; id: string; manifest: Manifest };
-  paths: {
-    pkgRoot: string;
-    home: string;
-    stateDir: string;
-    envsDir: string;
-    vendorDir: string;
-    composeFile: string;
-    vendorSvcDir: (svc: string) => string;
-    extraDir: (id: string) => string;
-    instanceDir: (name: string) => string;
-    // HOME/envs/<bundle>
-    envDir: (bundle: string) => string;
-  };
-  log: (m: string) => void;
-  run: (cmd: string[], opts?: RunOpts) => Promise<RunResult>;
-  GIT_ENV: Record<string, string>;
-  parseDotenv: (text: string) => Record<string, string>;
-  writeEnvFile: (path: string, header: string, env: Record<string, string>) => void;
-  // copies files from -> to that pass filter and are missing at the destination; returns relative paths copied
-  copyMissing: (from: string, to: string, filter: (rel: string) => boolean) => string[];
-  svcDef: (svc: string) => SvcDef;
-  srcSvc: (svc: string) => string;
-  findBackend: (id: string) => Backend | undefined;
-  login: () => LoginConfig | null;
-  hostPort: (slot: number, key: string) => number;
-  // localhost:<project host port> -> localhost:<slot port> (manifest hostPort)
-  rewriteLocalPorts: (v: string, ports: Record<string, number>) => string;
-  composeDoc: () => { services: Record<string, ComposeSvc>; volumes?: Record<string, unknown> };
-  compose: (name: string, args: string[], opts?: Pick<RunOpts, "inherit" | "check" | "onOutput">) => Promise<RunResult>;
-  containerName: (name: string, svc: string) => string;
-  containerState: (container: string) => Promise<CState>;
-  containerProcs: (container: string) => Promise<string[] | null>;
-  cosmosContainers: () => Promise<CosmosContainer[]>;
-  volumeExists: (volume: string) => Promise<boolean>;
-  specs: {
-    compose: (svc: string, source?: string) => Promise<BuildSpec | null>;
-    goAir: () => BuildSpec;
-    extra: (id: string) => BuildSpec;
-  };
-  hash: (...parts: string[]) => string;
-  gitHead: (dir: string) => Promise<string>;
-  pinnedSha: (svc: string) => Promise<string>;
-  ensureServiceSources: (svcs: string[], log: (m: string) => void) => Promise<Record<string, string>>;
-  waitHttp: (url: string, timeoutMs: number, ok?: (status: number) => boolean) => Promise<number>;
-  workers: (inst: Instance) => Promise<Record<string, { name: string; alive: boolean; count: number }[] | null>>;
-  error: (message: string, detail?: Record<string, unknown>) => Error;
-  // the container runtime every docker call goes to; hostAlias is how a container reaches the host
-  runtime: RuntimeInfo;
-};
-
-export interface Adapter {
-  // ---- compose ----
-  // each FE's env as written and the URL keys its browser code reads; drives the edge and the CORS check
-  browserEnvs?(ctx: AdapterContext, plan: Pick<StackPlan, "backend" | "ports" | "services" | "src">): BrowserEnv[];
-  composeService?(ctx: AdapterContext, draft: ServiceDraft, gen: GenContext): void;
-  // extra top-level services (not in the project's compose), as YAML lines under services:
-  composeExtra?(ctx: AdapterContext, gen: GenContext): string[];
-  // air build and run shell commands for a Go service (default: go build of goMain or ".", run from /source)
-  airCommands?(ctx: AdapterContext, svc: string, bin: string): { build: string; run: string } | undefined;
-  // ---- images ----
-  // undefined: core default (go-air under air, else the compose build); null: no image
-  buildPlan?(ctx: AdapterContext, q: BuildQuery): Promise<BuildPlan | null | undefined>;
-  // ---- lifecycle ----
-  // before sources and images: fill secrets, prepare env files (local: a local backend)
-  prepare?(ctx: AdapterContext, q: { services: string[]; local: boolean; log: (m: string) => void }): Promise<void>;
-  // services with syncDeps: install the checkout's deps into the instance's volumes when they changed
-  syncDeps?(ctx: AdapterContext, inst: Instance, svc: string, dir: string, r: Reporter, soft: string[]): Promise<void>;
-  // services an existing instance leaves out of this start
-  skipServices?(ctx: AdapterContext, inst: Instance, fresh: boolean, log: (m: string) => void): string[];
-  // an init service during a staged start: true when done, false to keep waiting, undefined for the default
-  waitInit?(ctx: AdapterContext, inst: Instance, svc: string, state: CState, soft: string[]): Promise<boolean | undefined>;
-  afterStage?(ctx: AdapterContext, inst: Instance, stage: string, services: string[], r: Reporter, soft: string[], deadline: number): Promise<void>;
-  beforeDown?(ctx: AdapterContext, inst: Instance, o: { remove: boolean }, r: Reporter): Promise<{ volumes?: string[] } | void>;
-  seed?(ctx: AdapterContext, inst: Instance, r: Reporter): Promise<SeedResult>;
-  // ---- envs and catalog ----
-  // which files of an env source get copied into HOME/envs/<bundle> (default: all)
-  envFilter?(ctx: AdapterContext, bundle: string, rel: string): boolean;
-  backendStatus?(ctx: AdapterContext, backend: Backend): BackendStatus;
-  // why a profile cannot run on an available backend, or null
-  profileBlocker?(ctx: AdapterContext, profile: Profile, backend: Backend, status: BackendStatus): string | null;
-  // ---- checks ----
-  doctor?(ctx: AdapterContext, q: { sources: Record<string, string> | null }): Promise<Check[]>;
-  // ---- share ----
-  previewRecipe?(ctx: AdapterContext, inst: Instance, fe: string): PreviewRecipe | null;
-  previewMode?(ctx: AdapterContext, inst: Instance, fe: string): "production" | "development";
-  shareReach?(ctx: AdapterContext, inst: Instance, fe: string, reach: Record<string, number>): Record<string, number>;
-  shareBlock?(ctx: AdapterContext, inst: Instance, exposeAdmin: boolean): ShareBlock[];
-  shareNotice?(ctx: AdapterContext, inst: Instance, fe: string, origin: string): { text: string; html: string } | null;
-  remoteView?(ctx: AdapterContext, inst: Instance, fe: string, sh: Pick<Share, "url" | "public" | "exposeAdmin" | "notice" | "reach">): string | undefined;
-  // ---- state and dashboard ----
-  migrateRecord?(inst: Instance): void;
-  dashboard?(ctx: AdapterContext): DashboardMeta | Promise<DashboardMeta>;
-}

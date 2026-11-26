@@ -11,7 +11,7 @@ export type RuntimeSource = "COSMOS_RUNTIME" | "cosmos.local.yaml" | "docker con
 
 export type Selection = { id: RuntimeId; profile: string | null; source: RuntimeSource; endpoint: string | null };
 
-// What every docker and compose call runs against, and what an adapter may read (AdapterContext.runtime).
+// What every docker and compose call runs against.
 export type RuntimeInfo = {
   id: RuntimeId;
   label: string;
