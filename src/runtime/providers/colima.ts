@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync } from "fs";
+import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from "fs";
 import { homedir } from "os";
 import { join, resolve, sep } from "path";
 import type { Check } from "../../api";
@@ -42,19 +42,28 @@ export const colima: Provider = {
     const home = colimaHome();
     let dirs: string[] = [];
     try {
-      dirs = readdirSync(home).filter((d) => !d.startsWith("_") && !d.startsWith("."));
+      dirs = readdirSync(home).filter((d) => !d.startsWith("_") && !d.startsWith(".") && statSync(join(home, d)).isDirectory());
     } catch {}
     // default first, then any other profile
     return ["default", ...dirs.filter((d) => d !== "default").sort()].map((d) => join(home, d, "docker.sock"));
   },
   profileOf: (socket) => {
     const m = socket.match(/^(.*)\/([^/]+)\/docker\.sock$/);
-    return m && resolve(m[1]) === colimaHome() ? m[2] : null;
+    if (!m) return null;
+    const real = (p: string) => {
+      try {
+        return realpathSync(p);
+      } catch {
+        return resolve(p);
+      }
+    };
+    return real(m[1]) === real(colimaHome()) ? m[2] : null;
   },
   create: (sel) => {
     const profile = sel.profile ?? "default";
     const y = colimaYaml(profile);
-    const inotify = y.mountInotify !== false;
+    // colima's default is off, so only an explicit true means events
+    const inotify = y.mountInotify === true;
     const flag = profileFlag(profile);
     return {
       id: "colima",
@@ -73,7 +82,7 @@ export const colima: Provider = {
         "bind mounts work only under the dirs the VM mounts (colima.yaml mounts; default ~ and /tmp/colima)",
         ...(inotify ? [] : ["mountInotify is off: host edits raise no file events in containers, so cosmos polls"]),
       ],
-      startHint: `colima start ${flag.join(" ")} --cpu 4 --memory 8 --vm-type vz --mount-type virtiofs`,
+      startHint: `colima start ${flag.join(" ")} --cpu 4 --memory 8 --vm-type vz --mount-type virtiofs --mount-inotify`,
       memoryFix: `colima stop ${flag.join(" ")} && colima start ${flag.join(" ")} --memory 16 (or edit ${join(profileDir(profile), "colima.yaml")})`,
       cpuFix: `colima stop ${flag.join(" ")} && colima start ${flag.join(" ")} --cpu 4`,
       hostPath: (p) => p,

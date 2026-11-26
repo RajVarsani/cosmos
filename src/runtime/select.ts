@@ -58,9 +58,11 @@ export function selectRuntime(i: SelectInput): Selection {
     const o = owner();
     // the context already points at this runtime: keep its endpoint (and colima profile) unless a profile was named
     if (o && o.id === spec.id && (spec.profile === null || spec.profile === o.profile)) return { id: spec.id, profile: o.profile ?? spec.profile, source, endpoint: i.endpoint };
-    const live = byId(spec.id).sockets(spec.profile).find(i.exists) ?? null;
-    const profile = spec.profile ?? (live ? byId(spec.id).profileOf(live) : null);
-    return { id: spec.id, profile, source, endpoint: live ? `unix://${live}` : null };
+    const socks = byId(spec.id).sockets(spec.profile);
+    // not running: still aim at its socket, so calls fail there instead of landing on another engine
+    const sock = socks.find(i.exists) ?? socks[0] ?? null;
+    const profile = spec.profile ?? (sock ? byId(spec.id).profileOf(sock) : null);
+    return { id: spec.id, profile, source, endpoint: sock ? `unix://${sock}` : null };
   };
 
   const env = parseRuntimeSpec(i.envSpec, "COSMOS_RUNTIME");
@@ -70,10 +72,12 @@ export function selectRuntime(i: SelectInput): Selection {
 
   const o = owner();
   if (o) return { ...o, source: "docker context", endpoint: i.endpoint };
+  // an engine none of the providers own (tcp, ssh, another runtime's socket) stays the user's choice
+  if (i.endpoint && !(cur && !i.exists(cur))) return { id: "docker-desktop", profile: null, source: "fallback", endpoint: i.endpoint };
   for (const p of i.providers) {
     const live = p.sockets(null).find(i.exists);
     if (live) return { id: p.id, profile: p.profileOf(live), source: "socket", endpoint: `unix://${live}` };
   }
-  // nothing found: today's behaviour (Docker Desktop), on whatever endpoint the CLI has
+  // nothing found: Docker Desktop semantics on whatever endpoint the CLI has
   return { id: "docker-desktop", profile: null, source: "fallback", endpoint: i.endpoint };
 }

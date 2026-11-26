@@ -55,7 +55,10 @@ export function ctx(): AdapterContext {
     specs: { compose: composeBuildSpec, goAir: goAirSpec, extra: extraBuildSpec },
     hash: h12, gitHead, pinnedSha, ensureServiceSources, waitHttp, workers,
     error: (message, detail) => new CosmosError(message, detail),
-    runtime: runtimeInfo(),
+    // lazy: a bad runtime setting must not break hooks that never touch docker
+    get runtime() {
+      return runtimeInfo();
+    },
   };
   return context;
 }

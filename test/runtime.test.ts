@@ -50,9 +50,17 @@ test("auto-detect follows the context endpoint, through symlinks, with the colim
 });
 
 test("auto-detect falls back to the first live socket, then to docker-desktop on the CLI default", () => {
-  expect(sel({ endpoint: "tcp://remote:2375", live: ["/orb/docker.sock", "/c/default/docker.sock"] })).toMatchObject({ id: "orbstack", source: "socket" });
+  // the context's socket is gone: probe the providers
+  expect(sel({ endpoint: "unix:///var/run/docker.sock", live: ["/orb/docker.sock", "/c/default/docker.sock"] })).toMatchObject({ id: "orbstack", source: "socket" });
   expect(sel({ endpoint: null, live: ["/c/cosmos-test/docker.sock"] })).toMatchObject({ id: "colima", profile: "cosmos-test", source: "socket" });
-  expect(sel({ endpoint: "tcp://remote:2375" })).toEqual({ id: "docker-desktop", profile: null, source: "fallback", endpoint: "tcp://remote:2375" });
+  expect(sel({ endpoint: null })).toEqual({ id: "docker-desktop", profile: null, source: "fallback", endpoint: null });
+});
+
+test("an engine no provider owns stays the user's choice, even with a provider socket live", () => {
+  const live = ["/dd/docker.sock", "/rd/docker.sock"];
+  expect(sel({ endpoint: "tcp://remote:2375", live })).toEqual({ id: "docker-desktop", profile: null, source: "fallback", endpoint: "tcp://remote:2375" });
+  expect(sel({ endpoint: "ssh://me@box", live })).toMatchObject({ source: "fallback", endpoint: "ssh://me@box" });
+  expect(sel({ endpoint: "unix:///rd/docker.sock", live })).toMatchObject({ source: "fallback", endpoint: "unix:///rd/docker.sock" });
 });
 
 test("explicit colima without a profile picks the live one; a named profile wins over the context", () => {
@@ -61,8 +69,10 @@ test("explicit colima without a profile picks the live one; a named profile wins
   expect(sel({ env: "colima:cosmos-test", endpoint: "unix:///c/default/docker.sock", live: ["/c/default/docker.sock", "/c/cosmos-test/docker.sock"] })).toMatchObject({ profile: "cosmos-test", endpoint: "unix:///c/cosmos-test/docker.sock" });
   // context already on that colima profile: keep its endpoint
   expect(sel({ env: "colima", endpoint: "unix:///c/default/docker.sock", live: ["/c/default/docker.sock"] })).toMatchObject({ profile: "default", endpoint: "unix:///c/default/docker.sock" });
-  // named but not running: no endpoint, so the docker call fails with the engine's own error and doctor names the start command
-  expect(sel({ env: "colima:nope", live: [] })).toMatchObject({ id: "colima", profile: "nope", endpoint: null });
+  // named but not running: still its own socket, so calls fail there and never reach the engine the context points at
+  expect(sel({ env: "colima:nope", endpoint: "unix:///dd/docker.sock", live: ["/dd/docker.sock"] })).toMatchObject({ id: "colima", profile: "nope", endpoint: "unix:///c/nope/docker.sock" });
+  expect(sel({ env: "orbstack", endpoint: "unix:///dd/docker.sock", live: ["/dd/docker.sock"] })).toMatchObject({ id: "orbstack", endpoint: "unix:///orb/docker.sock" });
+  expect(sel({ env: "colima", endpoint: "unix:///dd/docker.sock", live: ["/dd/docker.sock"] })).toMatchObject({ profile: "default", endpoint: "unix:///c/default/docker.sock" });
 });
 
 test("currentEndpoint: DOCKER_HOST, then DOCKER_CONTEXT / currentContext via the context meta store", () => {
