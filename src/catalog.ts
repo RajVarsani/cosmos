@@ -179,7 +179,7 @@ function parse(file: string, text: string): Manifest {
     throw new ConfigError(`${file}: ${(e as Error).message}`);
   }
   if (!doc || typeof doc !== "object" || Array.isArray(doc)) fail(1, "expected a map at the top level");
-  if (doc.adapter !== undefined) fail(keyLine("adapter", 0), `"adapter" is gone in cosmos 0.4: everything project-specific is data in cosmos.yaml. See the 0.3 to 0.4 migration in the cosmos README`);
+  if (doc.adapter !== undefined) fail(keyLine("adapter", 0), `"adapter" is gone since cosmos 0.5: everything project-specific is data in cosmos.yaml. See "Migrating a 0.3 or 0.4 consumer" in the cosmos README`);
   for (const k of Object.keys(doc)) if (!TOP_KEYS.includes(k)) fail(keyLine(k, 0), `unknown top-level key "${k}" (allowed: ${TOP_KEYS.join(", ")})`);
   if (typeof doc.schemaVersion === "number" && doc.schemaVersion > 1) fail(keyLine("schemaVersion", 0), `schemaVersion ${doc.schemaVersion} is newer than this cosmos reads (1); installed ${COSMOS_VERSION}. Update it: bun add -g @rajvarsani/cosmos@latest`);
   if (doc.schemaVersion !== 1) fail(keyLine("schemaVersion", 0), `schemaVersion must be 1 (this cosmos reads version 1)`);
