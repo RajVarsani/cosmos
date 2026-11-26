@@ -276,6 +276,9 @@ Install per project (bun add -d @rajvarsani/cosmos) and run as bunx cosmos <comm
   cosmos ports [name...]
   cosmos logs <name> [svc] [--tail N] [-f]
   cosmos dashboard [--port N] [--detach | --stop | --status]   web console on http://127.0.0.1:<port> (default ${BASE_PORT}, or COSMOS_DASHBOARD_PORT)
+  cosmos top                         full-screen terminal dashboard of this project's instances; works without the web dashboard
+      j/k or arrows move, enter details (services, ports, URLs, share), l logs (tab cycles services), o open the main URL,
+      s share on/off, d down (asks y/n), / filter by name, g galaxy view, ? help, q/esc back out of a pane, q in the list quits, ctrl-c quits
 
 The project is the nearest dir upward with a cosmos.yaml, or --project <dir> (COSMOS_PROJECT).
 Project state (instances, env copies, vendored worktrees) lives in ${HOME}/projects/<projectId>; slot and name claims of every project live in ${HOME}/registry.json. COSMOS_HOME moves both. A 0.1 layout is migrated on first run.
@@ -319,13 +322,14 @@ async function main() {
       "expose-admin": { type: "boolean" },
       project: { type: "string" },
       port: { type: "string" },
+      demo: { type: "boolean" },
       help: { type: "boolean", short: "h" },
     },
   });
   JSON_OUT = !!values.json;
   if (values.project) process.env.COSMOS_PROJECT = values.project;
   const [cmd0] = positionals;
-  const needsNoProject = !cmd0 || values.help || (cmd0 === "dashboard" && (values.status || values.stop));
+  const needsNoProject = !cmd0 || values.help || (cmd0 === "dashboard" && (values.status || values.stop)) || (cmd0 === "top" && values.demo);
   if (!needsNoProject || hasProject()) await loadAdapter().catch((e) => {
     if (!needsNoProject) throw e;
   });
@@ -353,6 +357,7 @@ async function main() {
     case "profiles": return cmdProfiles();
     case "build": return cmdBuild(values);
     case "dashboard": return dashboardMain(values, emit);
+    case "top": return (await import("./tui")).topMain({ demo: !!values.demo });
     default:
       console.log(help());
       if (cmd && !values.help) process.exitCode = 2;

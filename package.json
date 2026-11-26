@@ -1,6 +1,6 @@
 {
   "name": "@rajvarsani/cosmos",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Isolated instances of a project's docker compose stack on one machine, with per-instance worktrees, an edge, shares and a dashboard.",
   "type": "module",
   "bin": {
@@ -19,6 +19,7 @@
     "src/runtime/*.ts",
     "src/runtime/providers/*.ts",
     "src/dashboard/*.ts",
+    "src/tui/",
     "src/dashboard/app/dist/",
     "docker/go-air.Dockerfile",
     "skills/",
@@ -39,6 +40,7 @@
   },
   "devDependencies": {
     "@types/bun": "^1.4.2",
+    "@types/react": "^19.3.3",
     "typescript": "^7.0.2"
   },
   "license": "MIT",
@@ -46,5 +48,9 @@
     "type": "git",
     "url": "git+https://github.com/RajVarsani/cosmos.git"
   },
-  "homepage": "https://github.com/RajVarsani/cosmos#readme"
+  "homepage": "https://github.com/RajVarsani/cosmos#readme",
+  "dependencies": {
+    "ink": "^8.0.0",
+    "react": "^19.3.1"
+  }
 }

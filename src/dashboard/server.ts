@@ -13,6 +13,7 @@ import { A, ctx } from "../adapter";
 import type { DashboardMeta } from "../api";
 import { run } from "../sh";
 import { shareAlive } from "../share";
+import { probe, probeKind, instanceState, serviceHealthy, type Probe } from "../status";
 
 import { DIST } from "./build";
 
@@ -21,7 +22,6 @@ const STARTED_AT = new Date().toISOString();
 
 // ---------- probes: cached, refreshed only while someone is looking ----------
 
-type Http = { ok: boolean; status: number | null; ms: number | null; at: number };
 type Git = Awaited<ReturnType<typeof ops.gitInfo>>;
 
 const cache = {
@@ -30,7 +30,7 @@ const cache = {
   statsAt: 0,
   vm: null as VmMem | { error: string } | null,
   vmAt: 0,
-  http: {} as Record<string, Http>,
+  http: {} as Record<string, Probe>,
   git: {} as Record<string, Git & { at: number }>,
   catalog: null as null | Awaited<ReturnType<typeof ops.catalog>> | { error: string },
   catalogAt: 0,
@@ -44,37 +44,6 @@ const cache = {
 let lastSeen = 0;
 const watching = () => Date.now() - lastSeen < 30_000;
 
-async function probeHttp(port: number, path = "/"): Promise<Http> {
-  const t0 = performance.now();
-  try {
-    const r = await fetch(`http://127.0.0.1:${port}${path}`, { signal: AbortSignal.timeout(2000), redirect: "manual" });
-    await r.arrayBuffer().catch(() => {});
-    return { ok: r.status < 500, status: r.status, ms: Math.round(performance.now() - t0), at: Date.now() };
-  } catch {
-    return { ok: false, status: null, ms: null, at: Date.now() };
-  }
-}
-
-// TCP connect for services without HTTP (postgres, redis, mongo; localstack's edge is HTTP).
-async function probeTcp(port: number): Promise<Http> {
-  const t0 = performance.now();
-  return new Promise((resolve) => {
-    const done = (ok: boolean) => resolve({ ok, status: null, ms: ok ? Math.round(performance.now() - t0) : null, at: Date.now() });
-    const timer = setTimeout(() => done(false), 2000);
-    Bun.connect({ hostname: "127.0.0.1", port, socket: { open(sock) { clearTimeout(timer); sock.end(); done(true); }, data() {}, error() { clearTimeout(timer); done(false); }, connectError() { clearTimeout(timer); done(false); } } }).catch(() => { clearTimeout(timer); done(false); });
-  });
-}
-
-export const probeKind = (svc: string): "http" | "tcp" | "none" => {
-  try {
-    const d = svcDef(svc);
-    if (d.kind === "init" || d.offset === undefined) return "none";
-    return d.health ? "http" : "tcp";
-  } catch {
-    return "none";
-  }
-};
-
 async function refreshFast() {
   cache.containers = await cosmosContainers().catch(() => cache.containers);
   const insts = Object.values(readState().instances);
@@ -87,23 +56,12 @@ async function refreshFast() {
   const probes = insts.flatMap((i) =>
     Object.entries(i.ports).map(async ([svc, port]) => {
       const c = cache.containers.find((x) => x.instance === i.name && x.service === svc);
-      // http on each service's health path (some apps 500 on /), tcp connect for infra, nothing for one-shots
-      const kind = probeKind(svc);
-      if (kind === "none") return;
-      const down = { ok: false, status: null, ms: null, at: Date.now() };
-      cache.http[`${i.name}/${svc}`] = !c?.running ? down : kind === "http" ? await probeHttp(port, SVC_HEALTH(svc) ?? "/") : await probeTcp(port);
+      const p = await probe(svc, port, !!c?.running);
+      if (p) cache.http[`${i.name}/${svc}`] = p;
     }),
   );
   await Promise.all(probes);
 }
-
-const SVC_HEALTH = (svc: string): string | undefined => {
-  try {
-    return svcDef(svc).health ?? undefined;
-  } catch {
-    return undefined;
-  }
-};
 
 async function refreshCatalog() {
   cache.catalog = await ops.catalog().catch((e) => ({ error: `${(e as Error).message}\nrun cosmos doctor in a terminal for what to fix` }));
@@ -307,14 +265,9 @@ const dashOwner = (): Instance["owner"] => ({ cwd: projectDir(), sessionId: null
 
 // ---------- overview ----------
 
-function derive(i: Instance, main: CosmosContainer | undefined, http: Http | undefined, job: Job | undefined, up: number, of: number): string {
+function derive(job: Job | undefined, main: CosmosContainer | undefined, http: Probe | undefined, up: number, of: number): string {
   if (job) return { create: "creating", start: "starting", stop: "stopping", remove: "removing", source: "switching" }[job.kind];
-  if (!main) return up ? "partial" : "stopped";
-  if (main.status === "restarting") return "restarting";
-  if (!main.running) return "exited";
-  const started = main.startedAt ? Date.now() - Date.parse(main.startedAt) : 0;
-  if (http?.ok) return up < of ? "partial" : "running";
-  return started < 10 * 60_000 ? "booting" : "unresponsive";
+  return instanceState(main, http, up, of);
 }
 
 // contract shape for the sheet; the password is shown on this loopback-only console, never logged
@@ -352,7 +305,7 @@ function overview() {
         const st = c ? cache.stats[c.name] : undefined;
         const kind = svcDef(svc).kind;
         const pk = probeKind(svc);
-        const healthy = kind === "init" ? (c ? c.status === "exited" && c.exitCode === 0 : null) : !c?.running ? false : http ? http.ok : c.health ? c.health === "healthy" : true;
+        const healthy = serviceHealthy(kind, c, http);
         const err = c ? cache.errors[c.name] : undefined;
         return {
           service: svc,
@@ -392,7 +345,7 @@ function overview() {
         mainService: feSvc,
         url: ops.serviceUrl(i),
         urls,
-        state: derive(i, fe, cache.http[`${i.name}/${feSvc}`], job, upCount, longRunning.length),
+        state: derive(job, fe, cache.http[`${i.name}/${feSvc}`], upCount, longRunning.length),
         running: { up: upCount, of: longRunning.length, healthy: longRunning.filter((c) => c.healthy).length },
         memMiB: containers.reduce((n, c) => n + (c.memMiB ?? 0), 0) || null,
         containers,

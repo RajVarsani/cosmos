@@ -79,6 +79,24 @@ Offsets 40-49 (edge listeners) and 60 (share) are reserved by cosmos. Host port 
 `cosmos --help` lists them. The dashboard serves its prebuilt build on `--port` / `COSMOS_DASHBOARD_PORT`
 (default 20000) and refuses a busy port.
 
+`cosmos top` is the same view in the terminal: one row per instance (name, slot, profile, backend, status,
+memory, main URL), polled every 2s (memory every 5s) from the same state and docker reads the dashboard uses. It
+does not need the dashboard running.
+
+| Key | Does |
+| --- | --- |
+| `j` `k` `↑` `↓` | move |
+| `enter` | details: services with status and memory, ports, URLs, share |
+| `l` | logs of the main frontend; `tab` cycles services, `j`/`k` scroll, `G` follows |
+| `o` | open the main URL in the browser |
+| `s` | share on or off, as the dashboard's share button |
+| `d` | take the instance down, after `y`/`n` |
+| `/` | filter by name; `esc` clears |
+| `g` | galaxy view |
+| `?` | help |
+| `q` `esc` | back out of logs, help or a prompt; `q` in the list or galaxy quits |
+| `ctrl-c` | quit from anywhere |
+
 ## Development
 
 ```

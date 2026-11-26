@@ -15,6 +15,10 @@ to pick, where the seeded login is. Read them before the first `up`.
 
 `cosmos doctor --json` checks the machine and shows which container runtime is active.
 
+`cosmos top` is a full-screen terminal dashboard for people (keys: `j`/`k` move, `enter` details, `l` logs, `o`
+open, `s` share, `d` down, `/` filter, `g` galaxy, `?` help, `q`/`esc` back, `q` in the list quits, `ctrl-c` quits). It needs an interactive terminal; agents
+use `ls`, `status` and `logs` with `--json` instead.
+
 ## When to use
 
 You need a running app: browser QA, a screenshot, an API to call, a change to try against a real stack. If a
