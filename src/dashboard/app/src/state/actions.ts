@@ -150,14 +150,14 @@ export async function act(kind: string, name: string, svc?: string) {
   refreshOverview();
 }
 
-// one service of a system onto a branch, tag or sha, or galaxy's pin when ref is null; only its containers are recreated
+// one service of a system onto a branch, tag or sha, or the project's pin when ref is null; only its containers are recreated
 export async function switchSource(name: string, svc: string, ref: string | null, live = false) {
   setUi((s) => { const { [name]: _, ...rest } = s.lastError; return { lastError: rest }; });
   try {
     const r = await genericMutationFetcher(`/api/instances/${encodeURIComponent(name)}/source`, { arg: { type: "post", rest: [ref === null ? { svc, pinned: true } : { svc, ref, ...(live ? { live: true } : {}) }] } });
     watchJob(r.job, name);
     actFollow(r.job.id);
-    toast(`switching ${svc} to ${ref ?? "galaxy's pin"}${live ? " (live)" : ""} · progress in logs › activity (L)`);
+    toast(`switching ${svc} to ${ref ?? "the project's pin"}${live ? " (live)" : ""} · progress in logs › activity (L)`);
   } catch (e) {
     toast((e as Error).message, true);
   }

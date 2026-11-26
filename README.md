@@ -13,13 +13,14 @@ no cosmos dependency, no adapter code, no cosmos-only Dockerfiles.
 
 ```
 bun add -g @rajvarsani/cosmos
-cosmos doctor                                         # checks bun, the runtime, the project, git access, ports
-cosmos up --backend <backend> --profile <profile> --name "My Work"
-cosmos dashboard                                      # http://127.0.0.1:20000
+cosmos up
 ```
 
-cosmos finds `cosmos.yaml` in the working dir or the nearest one above it (or `--project <dir>`). `up` runs
-`doctor` itself on the first run on a machine. `cosmos --help` lists every command.
+Run `cosmos up` inside a clone of the project. With no flags it runs the project's `defaults` (backend and
+profile); `--backend`, `--profile` and `--name "My Work"` override them. cosmos finds `cosmos.yaml` in the working
+dir or the nearest one above it (or `--project <dir>`). `up` runs `doctor` itself on the first run on a machine;
+`cosmos doctor` re-checks bun, the runtime, the project, git access and ports. `cosmos dashboard` serves the web
+console on http://127.0.0.1:20000. `cosmos --help` lists every command.
 
 ## Container runtimes
 
@@ -76,6 +77,8 @@ all must hold and `!x` negates.
 | Key | Holds |
 | --- | --- |
 | `schemaVersion`, `cosmos`, `projectId`, `compose`, `sourcesDir`, `network` | identity, the minimum cosmos (semver range), the compose file, where submodules live |
+| `defaults` | `{backend, profile, build}`: what bare `cosmos up` runs (that backend, and that profile when it runs there, else the profile marked `default` for the backend's kind) and what `cosmos build` builds |
+| `prefetch` | services whose pinned source cosmos fetches for the catalog (sources that `vars` read) |
 | `composeEnvFiles`, `envSources` | env bundles: `{from: [dirs], include: [globs]}` per bundle, copied into the home; `cosmos.local.yaml` overrides `from` |
 | `vars` | per-backend values read from a service's source: `{service, file, match}` (first capture; `{{vars.x}}` in `match` is the backend's) |
 | `requires` | `{local, remote}` lists of `{file, fix}`: a backend kind is available when they exist; drives the catalog and `doctor` |

@@ -3,7 +3,7 @@ import { note } from "@/modules/ui/cap";
 import { BranchRow } from "./branch-row";
 import s from "./branches-field.module.css";
 
-// optional: a ref per source service for the new instance; unset rows stay on galaxy's pin
+// optional: a ref per source service for the new instance; unset rows stay on the project's pin
 export function BranchesField({ step, services }: { step: number; services: string[] }) {
   return (
     <Field step={step} label="branches">

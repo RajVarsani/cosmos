@@ -333,7 +333,8 @@ function resolveCombo(o: UpOpts): { backend: Backend; profile: Profile } {
   if (!backend) throw new CosmosError(`unknown backend "${backendId}" (have: ${all})`);
   const bst = backendStatus(backend);
   if (backend.kind === "remote" && !bst.available) throw new CosmosError(`backend ${backend.id} is unavailable: ${bst.reason}`);
-  const profile = named ?? findProfile(defaultProfile(backend))!;
+  const dflt = manifest().defaults.profile ? findProfile(manifest().defaults.profile!) : undefined;
+  const profile = named ?? (dflt && profileAllows(dflt, backend) ? dflt : findProfile(defaultProfile(backend))!);
   if (!profileAllows(profile, backend)) {
     throw new CosmosError(
       profile.backendKind === "local" ? `profile ${profile.id} brings its own backends; use --backend local (or omit --backend)` :

@@ -12,7 +12,7 @@ const MAX = 40;
 const where = (x: RefView) =>
   x.clone ? `held by your clone, runs a copy` : x.heldBy ? (x.live ? `live from ${x.heldBy}` : `in ${x.heldBy}, runs detached`) : x.local ? "local" : "origin";
 
-// filter the service's branches; arrows highlight, enter takes the highlighted item, else the typed text; null ref is galaxy's pin.
+// filter the service's branches; arrows highlight, enter takes the highlighted item, else the typed text; null ref is the project's pin.
 // live: a branch the galaxy clone holds mounts the clone instead of a copy. A div, not a form: it also sits inside the chooser's launch form.
 export function BranchPicker({ svc, current, onPick, onDone }: { svc: string; current: string | null; onPick: (ref: string | null, live: boolean) => void; onDone: () => void }) {
   const { data, error } = useRefs(svc);
@@ -45,7 +45,7 @@ export function BranchPicker({ svc, current, onPick, onDone }: { svc: string; cu
       <TextInput autoFocus value={q} placeholder="branch, tag or sha" aria-label={`${svc} ref`} onChange={(e) => { setQ(e.target.value); setHi(-1); }} onKeyDown={onKey} />
       <div className={s.list} role="listbox" aria-label={`${svc} branches`}>
         <button type="button" className={s.item} onClick={() => pick(null)} {...mark(0)}>
-          <b>pinned</b><span>galaxy's commit {short(data?.pinned, 8)}</span>
+          <b>pinned</b><span>the project's commit {short(data?.pinned, 8)}</span>
         </button>
         {shown.map((x, i) => (
           <div key={x.name} className={s.row}>

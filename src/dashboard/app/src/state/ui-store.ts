@@ -3,7 +3,7 @@ import type { Catalog, Overview } from "@/domain/types";
 
 export type Tab = "sys" | "lines" | "act" | "new";
 export type View = "galaxy" | "lines";
-// branches: service -> ref for a new instance; a service not named stays on galaxy's pin
+// branches: service -> ref for a new instance; a service not named stays on the project's pin
 // live: services whose branch mounts the galaxy clone instead of a copy
 export type Form = { profile: string | null; backend: string | null; name: string; branches: Record<string, string>; live: string[] };
 

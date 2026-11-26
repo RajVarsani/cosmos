@@ -51,9 +51,11 @@ short, pick a lighter profile or report it; do not stop other people's instances
 
 ## Up
 
-Name the instance after what you are working on, free text is fine:
+Bare `cosmos up --json` runs the project's defaults (`defaults` in its `cosmos.yaml`). Flags override them;
+name the instance after what you are working on, free text is fine:
 
 ```
+cosmos up --json
 cosmos up --backend <backend> --profile <profile> --name "Letter Platform" --json
 ```
 
