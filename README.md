@@ -1,30 +1,98 @@
 # cosmos
 
-Isolated instances of a project's docker compose stack on one machine: one slot of ports per instance, a git
-worktree per source-mounted service, a Caddy edge, zrok shares and a web dashboard.
+Cosmos runs several copies of one Docker Compose app side by side on one machine. Each copy gets its own ports and
+its own git worktree, so you can have one running copy per branch or per coding agent.
 
-The edge sits between an instance's frontends and the backends they call: the deployed hosts on remote profiles, the
-instance's own services on local ones. It answers CORS for the instance's origins and strips `Origin` upstream, so no
-backend needs a CORS change to run on other ports.
+## Try it in 10 seconds
 
-## Install
-
-Requires Bun 1.3 or newer and one supported container runtime: Docker Desktop, Colima or OrbStack (see
-[Container runtimes](#container-runtimes)).
-
-Install once per user. A project needs only `cosmos.yaml` at its root (see [Project contract](#project-contract)):
-no cosmos dependency, no adapter code, no cosmos-only Dockerfiles.
+No Docker and no project needed. This opens the terminal dashboard with sample data:
 
 ```
 bun add -g @rajvarsani/cosmos
-cosmos up
+cosmos top --demo
 ```
 
-Run `cosmos up` inside a clone of the project. With no flags it runs the project's `defaults` (backend and
-profile); `--backend`, `--profile` and `--name "My Work"` override them. cosmos finds `cosmos.yaml` in the working
-dir or the nearest one above it (or `--project <dir>`). `up` runs `doctor` itself on the first run on a machine;
-`cosmos doctor` re-checks bun, the runtime, the project, git access and ports. `cosmos dashboard` serves the web
-console on http://127.0.0.1:20000. `cosmos --help` lists every command.
+Press `g` for the galaxy view, `?` for help and `q` to quit.
+
+Cosmos runs on [Bun](https://bun.sh) 1.3 or newer, so install it with bun. `npm i -g` and `npx` also install it,
+but the `cosmos` command still needs `bun` on your PATH. `cosmos --version` prints the installed version.
+
+## Quickstart with your own app
+
+You need a running container runtime (Docker Desktop, Colima or OrbStack, see
+[Container runtimes](#container-runtimes)) and a git repo with at least one commit. Cosmos reads the project from
+its git HEAD, so commit `cosmos.yaml` and the compose file before `cosmos up`.
+
+Put a `cosmos.yaml` next to your compose file. This one is complete and works as is.
+
+`docker-compose.yml`:
+
+```yaml
+services:
+  web:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+```
+
+`cosmos.yaml`:
+
+```yaml
+schemaVersion: 1        # required, always 1
+projectId: hello        # required: lowercase letters, digits, dashes
+compose: docker-compose.yml   # optional, this is the default
+
+services:               # required: one entry per compose service cosmos runs
+  web:
+    kind: fe            # required: infra, init, app or fe
+    estMiB: 20          # required: rough memory use in MiB
+    offset: 1           # host port = 20000 + 100 * slot + offset
+    containerPort: 80   # the port inside the container
+    health: /           # HTTP path cosmos polls until the service answers
+
+backends:               # required: at least one
+  local:
+    kind: local         # required: local or remote
+
+profiles:               # required: at least one
+  web:
+    backend: local
+    default: true
+    services: [web]     # required: which services this profile starts
+
+defaults:               # optional: what bare `cosmos up` runs
+  backend: local
+  profile: web
+```
+
+Then:
+
+```
+git add cosmos.yaml docker-compose.yml && git commit -m "add cosmos"
+cosmos up                       # first copy, on http://localhost:20101
+cosmos up --name "Second Copy"  # second copy, on http://localhost:20201
+cosmos ls
+cosmos rm --all                 # stop and remove both
+```
+
+Each `cosmos up` starts one copy, called an instance. An instance gets a slot number, and every port moves with the
+slot, so copies never clash. A backend is what the frontends talk to: `local` runs the whole stack on your machine,
+`remote` points frontends at an already deployed API. A profile is a named list of services to start.
+
+`cosmos up` with no flags runs the project's `defaults`. `--backend`, `--profile` and `--name "My Work"` override
+them. Cosmos finds `cosmos.yaml` in the working dir or the nearest one above it (or `--project <dir>`). `up` runs
+`doctor` itself on the first run on a machine. `cosmos doctor` re-checks bun, the runtime, the project, git access
+and ports. `cosmos dashboard` serves the web console on http://127.0.0.1:20000. `cosmos --help` lists every command.
+
+A project needs only `cosmos.yaml` at its root (see [Project contract](#project-contract)): no cosmos dependency,
+no adapter code, no cosmos-only Dockerfiles.
+
+## The edge
+
+For frontends that call a separate API, cosmos puts a small Caddy proxy (the edge) between an instance's frontends
+and the backends they call: the deployed hosts on remote profiles, the instance's own services on local ones. It
+answers CORS for the instance's origins and strips `Origin` upstream, so no backend needs a CORS change to run on
+other ports.
 
 ## Container runtimes
 
@@ -80,7 +148,8 @@ all must hold and `!x` negates.
 
 | Key | Holds |
 | --- | --- |
-| `schemaVersion`, `cosmos`, `projectId`, `compose`, `sourcesDir`, `network` | identity, the minimum cosmos (semver range), the compose file, where submodules live |
+| `schemaVersion`, `projectId` | required: `schemaVersion` is always `1`, `projectId` is lowercase letters, digits and dashes |
+| `cosmos`, `compose`, `sourcesDir`, `network` | the minimum cosmos (semver range), the compose file (default `docker-compose.yml`), where source submodules live (default `services`), the compose network cosmos renames per instance |
 | `defaults` | `{backend, profile, build}`: what bare `cosmos up` runs (that backend, and that profile when it runs there, else the profile marked `default` for the backend's kind) and what `cosmos build` builds |
 | `prefetch` | services whose pinned source cosmos fetches for the catalog (sources that `vars` read) |
 | `composeEnvFiles`, `envSources` | env bundles: `{from: [dirs], include: [globs]}` per bundle, copied into the home; `cosmos.local.yaml` overrides `from` |
@@ -88,7 +157,7 @@ all must hold and `!x` negates.
 | `requires` | `{local, remote}` lists of `{file, fix}`: a backend kind is available when they exist; drives the catalog and `doctor` |
 | `backendHost` | `{file, key}`: the deployed host a remote backend's FE calls, for the catalog |
 | `secrets` | `{service, file, keys, command, fix}`: keys an env file lacks, read from a command's JSON output and appended (local stacks) |
-| `services.<svc>` | kind, offset, containerPort, health, srcMount, go, workers, origin, remote, ready, url, uses, repo, extra, dependsOn, calledBy (as before), plus the keys below |
+| `services.<svc>` | required: `kind` (`infra`, `init` one-shot job, `app`, `fe` frontend) and `estMiB` (rough memory). Port: `offset` + `containerPort` (set both or neither), `extraPorts` `[{key, offset, containerPort}]`, `hostPort` (the project's own host port, so `localhost:<hostPort>` in env values moves to the slot port). Readiness: `health` (HTTP path polled on start; unset or `null` uses docker's health status), `ready` (fe path polled on start, default `/`), `workers` `[{name, match}]` (processes that must be alive). Source: `srcMount` (where the worktree is mounted in the container), `repo` (source dir under `sourcesDir` when it differs), `uses` (run another service's image and source), `go` and `goMain` (a Go service run under air, and its main package dir). Other: `origin` (a browser origin backends allowlist), `remote` (fe may run against a deployed backend, default true), `url` (address shown for the port, `{port}` is replaced), `extra` (run from an `extras` entry, not from compose), `dependsOn` and `calledBy` (dependencies for services not in the compose file). Plus the keys below |
 | `services.<svc>.env` | environment merged over the compose service's; a value is a template or `{value, if, else}` |
 | `services.<svc>.volumes`, `.command` | compose short-syntax volumes added (anonymous ones become per-instance volumes keyed on the image), the command replaced |
 | `services.<svc>.layouts` | `[{when: <file in the checkout>, vars}]`: the first match gives `{{layout.*}}` (a repo with two layouts) |
@@ -98,7 +167,13 @@ all must hold and `!x` negates.
 | `services.<svc>.air` | go: `{target, build, run}`: run air on the compose build's Dockerfile target, with these commands (`{{bin}}`) |
 | `services.<svc>.preview`, `.share` | share preview build `{out, viteTemp, command, mkOut, needMiB, dropEnv, mode}`; `share.about` / `share.notice` text per backend kind |
 | `services.<svc>.skipIfExists`, `.softFail`, `.restartDeadWorkersAfter` | init skipped on an existing instance when the file is in the instance dir; a non-zero init exit whose logs match is a warning; restart once if workers are dead after that init |
-| `backends`, `profiles`, `stages`, `legacyProfiles`, `retiredServices`, `login`, `images`, `extras` | as before; `login` is the seeded user of local stacks, so `up` and `ls` show it only for local backends; an extra runs from its service definition (`env`, `dependsOn`) |
+| `backends` | required, at least one: `<id>: {kind: local or remote, aliases, live, vars}`. `vars` feed `{{vars.<name>}}` |
+| `profiles` | required: `<id>: {services, backend, default, title, about}`. `services` is required. `backend` is `local`, `remote` (the default) or a list of remote backend ids. A remote profile runs only frontends. One `default` per kind |
+| `stages` | `[{id, services}]`: start order on local stacks, each stage waits until healthy. Services in no stage start last, together |
+| `legacyProfiles`, `retiredServices` | `{old: new}` profile renames that still work with a note, and names of dropped services that older instance records may still list |
+| `login` | `{email, password, firstName, lastName}`: the seeded user of local stacks, so `up` and `ls` show it only for local backends |
+| `images` | `{name: image}`: when a compose service's `image:` is one of these names, the instance runs the mapped image |
+| `extras` | `<id>: {url, sha, ref, dockerfile}`: a repo cosmos clones at that full commit sha and builds from its own Dockerfile. A service with `extra: <id>` runs it from its service definition (`env`, `dependsOn`) |
 | `seed` | `{service, requires, counts: {service, command, stdin}}`: `cosmos seed` re-runs that init service and prints `key=count` lines |
 | `share` | `reach` and `block` (`[{service, prefixes}]`) per backend kind |
 | `hooks.beforeDown` | a shell command run before `down`/`rm` with `COSMOS_INSTANCE`, `COSMOS_INSTANCE_DIR`, `COSMOS_BACKEND`, `COSMOS_BACKEND_KIND`, `COSMOS_REMOVE` |
@@ -124,7 +199,7 @@ an instance made by an adapter that named its own volumes gets fresh ones (and a
 `cosmos --help` lists them. The dashboard serves its prebuilt build on `--port` / `COSMOS_DASHBOARD_PORT`
 (default 20000) and refuses a busy port.
 
-`cosmos top` is the same view in the terminal: one row per instance (name, slot, profile, backend, status,
+`cosmos top` is the same view in the terminal (`cosmos top --demo` shows it with sample data, no project or Docker needed): one row per instance (name, slot, profile, backend, status,
 memory, main URL), polled every 2s (memory every 5s) from the same state and docker reads the dashboard uses. It
 does not need the dashboard running.
 

@@ -298,15 +298,17 @@ export function generateStack(p: StackPlan): StackOut {
   if (p.edge?.length) generateEdge(p, lines, origins);
   const net = m.network ?? Object.keys(doc.networks ?? {})[0];
   if (net) lines.push("networks:", `  ${net}:`, `    name: ${j(`cosmos-${p.name}-net`)}`);
-  lines.push("volumes:");
   // the project's own named volumes always get cosmos names, used or not, so nothing ever lands on the project's.
   for (const k of projectNamed) {
     if (!registry[k]) vol(k, { "cosmos.data": "1" }, `cosmos-${p.name}-${slug(k)}`);
     used.add(k);
   }
   const keep = Object.entries(registry).filter(([k]) => used.has(k));
+  const goAir = p.goMode === "air" && p.services.some((s) => svcDef(s).go);
+  // compose refuses an empty "volumes:" key, so a stack with no volumes gets none
+  if (keep.length || goAir) lines.push("volumes:");
   for (const [k, v] of keep) lines.push(`  ${k}:`, `    name: ${j(v.name)}`, `    labels: ${j(v.labels)}`);
-  if (p.goMode === "air" && p.services.some((s) => svcDef(s).go)) for (const v of SHARED_VOLUMES) lines.push(`  ${v}:`, `    name: ${j(v)}`, `    external: true`);
+  if (goAir) for (const v of SHARED_VOLUMES) lines.push(`  ${v}:`, `    name: ${j(v)}`, `    external: true`);
   lines.push("");
   const override = lines.join("\n");
   writeFileSync(overridePath(p.name), override);

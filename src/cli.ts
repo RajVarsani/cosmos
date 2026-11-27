@@ -5,7 +5,7 @@ import { CosmosError } from "./errors";
 import { dashboardMain } from "./dashboard/control";
 import { BACKENDS, findBackend, LEGACY_PROFILES, loginConfig, manifest } from "./catalog";
 import { doctor, doctorDone, printDoctor, rememberDoctor } from "./doctor";
-import { HOME, hasProject } from "./paths";
+import { COSMOS_VERSION, HOME, hasProject } from "./paths";
 import { migrateLegacy } from "./migrate";
 
 let JSON_OUT = false;
@@ -281,14 +281,15 @@ Install once per user (bun add -g @rajvarsani/cosmos) and run cosmos <command> i
   cosmos ports [name...]
   cosmos logs <name> [svc] [--tail N] [-f]
   cosmos dashboard [--port N] [--detach | --stop | --status]   web console on http://127.0.0.1:<port> (default ${BASE_PORT}, or COSMOS_DASHBOARD_PORT)
-  cosmos top                         full-screen terminal dashboard of this project's instances; works without the web dashboard
+  cosmos top [--demo]                full-screen terminal dashboard of this project's instances; works without the web dashboard
+      --demo shows sample instances: no project, no cosmos.yaml and no Docker needed
       j/k or arrows move, enter details (services, ports, URLs, share), l logs (tab cycles services), o open the main URL,
       s share on/off, d down (asks y/n), / filter by name, g galaxy view, ? help, q/esc back out of a pane, q in the list quits, ctrl-c quits
 
 The project is the nearest dir upward with a cosmos.yaml, or --project <dir> (COSMOS_PROJECT).
 Project state (instances, env copies, vendored worktrees) lives in ${HOME}/projects/<projectId>; slot and name claims of every project live in ${HOME}/registry.json. COSMOS_HOME moves both. A 0.1 layout is migrated on first run.
 The container runtime (docker-desktop, colima, orbstack) is COSMOS_RUNTIME, else runtime: in ${HOME}/cosmos.local.yaml, else whatever the docker context points at; colima:<profile> picks a colima profile. cosmos never switches the docker context.
-All commands take --json. Host port = ${BASE_PORT} + 100*slot + offset (offsets in cosmos.yaml); slot 0 is never assigned.`;
+cosmos --version (-v) prints the installed version. All commands take --json. Host port = ${BASE_PORT} + 100*slot + offset (offsets in cosmos.yaml); slot 0 is never assigned.`;
 }
 
 async function main() {
@@ -329,9 +330,11 @@ async function main() {
       port: { type: "string" },
       demo: { type: "boolean" },
       help: { type: "boolean", short: "h" },
+      version: { type: "boolean", short: "v" },
     },
   });
   JSON_OUT = !!values.json;
+  if (values.version) return console.log(COSMOS_VERSION);
   if (values.project) process.env.COSMOS_PROJECT = values.project;
   const [cmd0] = positionals;
   const needsNoProject = !cmd0 || values.help || (cmd0 === "dashboard" && (values.status || values.stop)) || (cmd0 === "top" && values.demo);
