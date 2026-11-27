@@ -428,7 +428,8 @@ async function waitStage(inst: Instance, stage: string[], deadline: number, r: R
       }
       const crash = await crashState(cn);
       if (crash) throw new CosmosError(`${svc} ${crash} during start; see: cosmos logs ${inst.name} ${svc}`);
-      if (d.health === null) {
+      // no health path (null or unset): docker's own health status, else a running container
+      if (d.health == null) {
         const h = (await run(["docker", "inspect", "-f", "{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}", cn], { quiet: true })).stdout.trim();
         if (h === "healthy" || (h === "none" && c?.running)) pending.delete(svc);
         continue;
